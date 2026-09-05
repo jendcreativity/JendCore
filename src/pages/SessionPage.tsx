@@ -14,7 +14,7 @@ import { ChatMessage, createMessage } from '../lib/chat';
 export default function SessionPage() {
   const params = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
-  const code = params.sessionId ?? '''';
+  const code = params.sessionId ?? '';
   
   if (!isValidSessionCode(code)) {
     return <Navigate to="/join" replace />;
@@ -58,9 +58,9 @@ export default function SessionPage() {
       setChat((prev) => [...prev, msg]);
       signaling.send({
         from: signaling.selfId,
-        to: '''*''',
-        kind: '''hello''',
-        payload: { kind: '''chat''', message: msg },
+        to: '*',
+        kind: 'hello',
+        payload: { kind: 'chat', message: msg },
       });
     },
     [signaling],
@@ -71,9 +71,9 @@ export default function SessionPage() {
       setAnnotations((prev) => [...prev, a]);
       signaling.send({
         from: signaling.selfId,
-        to: '''*''',
-        kind: '''hello''',
-        payload: { kind: '''annotation-add''', annotation: a },
+        to: '*',
+        kind: 'hello',
+        payload: { kind: 'annotation-add', annotation: a },
       });
     },
     [signaling],
@@ -86,9 +86,9 @@ export default function SessionPage() {
       );
       signaling.send({
         from: signaling.selfId,
-        to: '''*''',
-        kind: '''hello''',
-        payload: { kind: '''annotation-patch''', id, patch },
+        to: '*',
+        kind: 'hello',
+        payload: { kind: 'annotation-patch', id, patch },
       });
     },
     [signaling],
@@ -98,25 +98,25 @@ export default function SessionPage() {
     setAnnotations([]);
     signaling.send({
       from: signaling.selfId,
-      to: '''*''',
-      kind: '''hello''',
-      payload: { kind: '''annotation-clear''' },
+      to: '*',
+      kind: 'hello',
+      payload: { kind: 'annotation-clear' },
     });
   }, [signaling]);
 
   useEffect(() => {
     const unsub = signaling.subscribe((msg: SignalEnvelope) => {
       const payload = msg.payload as any;
-      if (payload?.kind === '''chat''') {
+      if (payload?.kind === 'chat') {
         setChat((prev) => [...prev, payload.message]);
-      } else if (payload?.kind === '''annotation-add''') {
+      } else if (payload?.kind === 'annotation-add') {
         setAnnotations((prev) => [...prev, payload.annotation]);
-      } else if (payload?.kind === '''annotation-patch''') {
+      } else if (payload?.kind === 'annotation-patch') {
         const { id, patch } = payload;
         setAnnotations((prev) =>
           prev.map((a) => (a.id === id ? ({ ...a, ...patch } as Annotation) : a)),
         );
-      } else if (payload?.kind === '''annotation-clear''') {
+      } else if (payload?.kind === 'annotation-clear') {
         setAnnotations([]);
       }
     });
@@ -125,7 +125,7 @@ export default function SessionPage() {
 
   function endSession() {
     media.stop();
-    navigate('''/''');
+    navigate('/');
   }
 
   return (
@@ -215,3 +215,4 @@ export default function SessionPage() {
     </div>
   );
 }
+
