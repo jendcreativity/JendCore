@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { IconX } from './Icon';
+import { IconClose } from './Icon';
 
 interface Props {
   isOpen: boolean;
@@ -37,7 +36,7 @@ export default function SidePanel({ isOpen, onClose, children }: Props) {
             className="p-1 hover:bg-ink-700 rounded transition"
             aria-label="Close panel"
           >
-            <IconX size={20} />
+            <IconClose size={20} />
           </button>
         </div>
 

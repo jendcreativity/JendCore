@@ -158,6 +158,15 @@ export const IconLogo = (p: IconProps) => (
 export const IconCamera = (p: IconProps) => (
   <Icon {...p}>
     <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+    <circle cx="12" cy="13" r="3" />
+  </Icon>
+);
+
+export const IconClose = (p: IconProps) => (
+  <Icon {...p}>
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
+  </Icon>
     <circle cx="12" cy="13" r="4" />
   </Icon>
 );
