@@ -174,9 +174,9 @@ export default function SessionPage() {
             annotationTool={tool}
             onSelectTool={setTool}
             annotationsOpen={annotationsOpen}
-            onToggleAnnotations={setAnnotationsOpen}
+            onToggleAnnotations={() => setAnnotationsOpen((prev) => !prev)}
             chatOpen={chatOpen}
-            onToggleChat={setChatOpen}
+            onToggleChat={() => setChatOpen((prev) => !prev)}
             onClearAnnotations={clearAnnotations}
             onEnd={endSession}
           />
