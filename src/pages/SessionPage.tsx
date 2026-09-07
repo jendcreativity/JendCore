@@ -79,8 +79,7 @@ export default function SessionPage() {
   const [chat, setChat] = useState<ChatMessage[]>([]);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [tool, setTool] = useState<AnnotationTool | null>(null);
-  const [chatOpen, setChatOpen] = useState(false);
-  const [annotationsOpen, setAnnotationsOpen] = useState(true);
+  const [sidebarTab, setSidebarTab] = useState<'annotations' | 'chat'>('annotations');
 
 
   const sendChat = useCallback(
@@ -216,15 +215,13 @@ export default function SessionPage() {
             </div>
           )}
 
-          {annotationsOpen && (
-            <AnnotationCanvas
-              annotations={annotations}
-              selfId={signaling.selfId}
-              tool={tool}
-              onCommit={commitAnnotation}
-              onPatch={patchAnnotation}
-            />
-          )}
+          <AnnotationCanvas
+            annotations={annotations}
+            selfId={signaling.selfId}
+            tool={tool}
+            onCommit={commitAnnotation}
+            onPatch={patchAnnotation}
+          />
         </div>
         <div className="flex flex-col bg-ink-800 border-l border-ink-700 min-h-0">
           <SessionControls
@@ -237,43 +234,63 @@ export default function SessionPage() {
             onToggleShare={toggleShare}
             annotationTool={tool}
             onSelectTool={setTool}
-            annotationsOpen={annotationsOpen}
-            onToggleAnnotations={() => setAnnotationsOpen((prev) => !prev)}
-            chatOpen={chatOpen}
-            onToggleChat={() => setChatOpen((prev) => !prev)}
+            sidebarTab={sidebarTab}
+            onSelectTab={setSidebarTab}
             onClearAnnotations={clearAnnotations}
             onEnd={endSession}
           />
-          {chatOpen ? (
+          {/* Sidebar tabs */}
+          <div className="flex border-b border-ink-700">
+            <button
+              onClick={() => setSidebarTab('annotations')}
+              className={`flex-1 px-3 py-2 text-xs font-semibold transition ${
+                sidebarTab === 'annotations'
+                  ? 'bg-accent-500 text-white'
+                  : 'bg-ink-700 text-ink-300 hover:bg-ink-600'
+              }`}
+            >
+              Annotations
+            </button>
+            <button
+              onClick={() => setSidebarTab('chat')}
+              className={`flex-1 px-3 py-2 text-xs font-semibold transition ${
+                sidebarTab === 'chat'
+                  ? 'bg-accent-500 text-white'
+                  : 'bg-ink-700 text-ink-300 hover:bg-ink-600'
+              }`}
+            >
+              Chat
+            </button>
+          </div>
+
+          {/* Tab content */}
+          {sidebarTab === 'annotations' ? (
+            <div className="flex-1 flex flex-col min-h-0 p-3 border-t border-ink-700">
+              <div className="flex-1 overflow-y-auto space-y-2">
+                {annotations.length === 0 ? (
+                  <div className="text-xs text-ink-500">No annotations yet</div>
+                ) : (
+                  annotations.map((a) => (
+                    <div key={a.id} className="text-xs bg-ink-700 p-2 rounded text-ink-200">
+                      <div className="font-semibold">{a.tool}</div>
+                      <div className="text-ink-400">by {a.author}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+              <button
+                onClick={clearAnnotations}
+                className="mt-2 px-2 py-1 bg-red-500/20 text-red-300 rounded text-xs hover:bg-red-500/30 transition"
+              >
+                Clear All
+              </button>
+            </div>
+          ) : (
             <ChatPanel
               messages={chat}
               selfId={signaling.selfId}
               onSend={sendChat}
             />
-          ) : (
-            annotationsOpen && (
-              <div className="flex-1 flex flex-col min-h-0 p-3 border-t border-ink-700">
-                <div className="text-xs font-semibold text-ink-400 mb-2">Annotations</div>
-                <div className="flex-1 overflow-y-auto space-y-2">
-                  {annotations.length === 0 ? (
-                    <div className="text-xs text-ink-500">No annotations yet</div>
-                  ) : (
-                    annotations.map((a) => (
-                      <div key={a.id} className="text-xs bg-ink-700 p-2 rounded text-ink-200">
-                        <div className="font-semibold">{a.tool}</div>
-                        <div className="text-ink-400">by {a.author}</div>
-                      </div>
-                    ))
-                  )}
-                </div>
-                <button
-                  onClick={clearAnnotations}
-                  className="mt-2 px-2 py-1 bg-red-500/20 text-red-300 rounded text-xs hover:bg-red-500/30 transition"
-                >
-                  Clear All
-                </button>
-              </div>
-            )
           )}
         </div>
       </div>

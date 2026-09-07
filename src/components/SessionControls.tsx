@@ -25,13 +25,10 @@ interface Props {
   isSharing: boolean;
   onToggleShare: () => void;
 
-  chatOpen: boolean;
-  onToggleChat: () => void;
-
   annotationTool: AnnotationTool | null;
   onSelectTool: (tool: AnnotationTool | null) => void;
-  annotationsOpen: boolean;
-  onToggleAnnotations: () => void;
+  sidebarTab: 'annotations' | 'chat';
+  onSelectTab: (tab: 'annotations' | 'chat') => void;
   onClearAnnotations: () => void;
 
   onEnd: () => void;
@@ -55,22 +52,18 @@ export default function SessionControls(props: Props) {
     onFlipCamera,
     isSharing,
     onToggleShare,
-    chatOpen,
-    onToggleChat,
     annotationTool,
     onSelectTool,
-    annotationsOpen,
-    onToggleAnnotations,
+    sidebarTab,
+    onSelectTab,
     onClearAnnotations,
     onEnd,
   } = props;
 
-  const annotating = annotationTool !== null;
-
   return (
     <div className="bg-ink-800/95 backdrop-blur border-t-2 border-ink-700 safe-bottom">
-      {/* Annotation tools (when open) */}
-      {annotationsOpen && (
+      {/* Annotation tools (when in annotations tab) */}
+      {sidebarTab === 'annotations' && (
         <div className="flex items-center gap-2 overflow-x-auto px-3 py-3 border-b border-ink-700 bg-ink-800">
           <ToolButton
             active={annotationTool === 'freehand'}
@@ -149,17 +142,17 @@ export default function SessionControls(props: Props) {
         <div className="flex-1 sm:flex-none" />
         
         <CtrlButton
-          onClick={onToggleAnnotations}
+          onClick={() => onSelectTab('annotations')}
           label="Annotate"
-          variant={annotationsOpen ? 'active' : 'neutral'}
+          variant={sidebarTab === 'annotations' ? 'active' : 'neutral'}
         >
           <IconPen size={24} />
         </CtrlButton>
 
         <CtrlButton
-          onClick={onToggleChat}
+          onClick={() => onSelectTab('chat')}
           label="Chat"
-          variant={chatOpen ? 'active' : 'neutral'}
+          variant={sidebarTab === 'chat' ? 'active' : 'neutral'}
         >
           <IconChat size={24} />
         </CtrlButton>
@@ -171,7 +164,7 @@ export default function SessionControls(props: Props) {
       </div>
 
       {/* Active state indicator */}
-      {annotating && (
+      {annotationTool !== null && (
         <p className="text-center text-xs text-ink-300 pb-3 font-medium">
           Drawing mode active • Tap again to stop
         </p>
