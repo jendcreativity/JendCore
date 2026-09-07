@@ -2,7 +2,12 @@
 
 > **See it. Point to it. Solve it.**
 
-JendCore is a simple real-time visual communication tool. It helps two or
+JendCore is a simple real-time visual communication tool. It helps two or more people see, point to, and discuss things together in real time.
+
+## Deployment
+
+This app is deployed on Vercel. Visit https://jendcore.vercel.app to try it.
+
 more people see, discuss, point at, mark, and guide one another over live
 video — without forcing them to learn a complicated conferencing suite.
 
