@@ -7,6 +7,7 @@ import { SignalEnvelope, usePeerConnection } from '../hooks/usePeerConnection';
 import AnnotationCanvas from '../components/AnnotationCanvas';
 import ChatPanel from '../components/ChatPanel';
 import SessionControls from '../components/SessionControls';
+import SidePanel from '../components/SidePanel';
 import VideoTile from '../components/VideoTile';
 import { Annotation, AnnotationTool } from '../lib/annotations';
 import { ChatMessage, createMessage } from '../lib/chat';
@@ -76,6 +77,7 @@ export default function SessionPage() {
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [tool, setTool] = useState<AnnotationTool | null>(null);
   const [sidebarTab, setSidebarTab] = useState<'annotations' | 'chat'>('annotations');
+  const [sidePanelOpen, setSidePanelOpen] = useState(false);
 
 
   const sendChat = useCallback(
@@ -163,6 +165,7 @@ export default function SessionPage() {
         </div>
       )}
       <div className="flex-1 flex flex-col sm:flex-row min-h-0">
+        {/* Video area - full screen on mobile */}
         <div className="flex-1 relative flex items-center justify-center bg-black min-h-0 sm:min-h-full order-2 sm:order-1">
           {/* Main video: show whoever is sharing, or default to your camera */}
           {sharingPeerId === remotePeerId ? (
@@ -184,7 +187,7 @@ export default function SessionPage() {
           )}
 
           {/* Corner video: show the other person, or your camera if remote is sharing */}
-          <div className="absolute bottom-16 right-3 sm:top-4 sm:right-4 sm:bottom-auto w-20 sm:w-32 md:w-40 aspect-[3/4] rounded-lg sm:rounded-xl overflow-hidden border-2 border-ink-700 shadow-lg z-20">
+          <div className="absolute bottom-20 right-3 sm:top-4 sm:right-4 sm:bottom-auto w-20 sm:w-32 md:w-40 aspect-[3/4] rounded-lg sm:rounded-xl overflow-hidden border-2 border-ink-700 shadow-lg z-20">
             {sharingPeerId === remotePeerId ? (
               <VideoTile
                 stream={media.stream}
@@ -211,6 +214,15 @@ export default function SessionPage() {
             </div>
           )}
 
+          {/* Mobile panel toggle button */}
+          <button
+            onClick={() => setSidePanelOpen(!sidePanelOpen)}
+            className="sm:hidden absolute bottom-3 left-3 px-3 py-2 bg-accent-500 hover:bg-accent-600 text-white rounded-lg font-semibold text-sm z-20 transition"
+            aria-label="Toggle controls panel"
+          >
+            ⚙️ Controls
+          </button>
+
           <AnnotationCanvas
             annotations={annotations}
             selfId={signaling.selfId}
@@ -219,7 +231,9 @@ export default function SessionPage() {
             onPatch={patchAnnotation}
           />
         </div>
-        <div className="flex flex-col bg-ink-800 border-t sm:border-t-0 sm:border-l border-ink-700 min-h-0 order-3 sm:order-2 w-full sm:w-80 md:w-96 max-h-64 sm:max-h-none">
+
+        {/* Desktop sidebar - always visible */}
+        <div className="hidden sm:flex flex-col bg-ink-800 border-t sm:border-t-0 sm:border-l border-ink-700 min-h-0 w-80 md:w-96">
           <SessionControls
             micEnabled={media.micEnabled}
             cameraEnabled={media.cameraEnabled}
@@ -289,6 +303,78 @@ export default function SessionPage() {
             />
           )}
         </div>
+
+        {/* Mobile collapsible side panel */}
+        <SidePanel isOpen={sidePanelOpen} onClose={() => setSidePanelOpen(false)}>
+          <SessionControls
+            micEnabled={media.micEnabled}
+            cameraEnabled={media.cameraEnabled}
+            onToggleMic={media.toggleMic}
+            onToggleCamera={media.toggleCamera}
+            onFlipCamera={media.flipCamera}
+            isSharing={sharingPeerId === signaling.selfId}
+            onToggleShare={toggleShare}
+            annotationTool={tool}
+            onSelectTool={setTool}
+            sidebarTab={sidebarTab}
+            onSelectTab={setSidebarTab}
+            onClearAnnotations={clearAnnotations}
+            onEnd={endSession}
+          />
+          {/* Sidebar tabs */}
+          <div className="flex border-b border-ink-700">
+            <button
+              onClick={() => setSidebarTab('annotations')}
+              className={`flex-1 px-3 py-2 text-xs font-semibold transition ${
+                sidebarTab === 'annotations'
+                  ? 'bg-accent-500 text-white'
+                  : 'bg-ink-700 text-ink-300 hover:bg-ink-600'
+              }`}
+            >
+              Annotations
+            </button>
+            <button
+              onClick={() => setSidebarTab('chat')}
+              className={`flex-1 px-3 py-2 text-xs font-semibold transition ${
+                sidebarTab === 'chat'
+                  ? 'bg-accent-500 text-white'
+                  : 'bg-ink-700 text-ink-300 hover:bg-ink-600'
+              }`}
+            >
+              Chat
+            </button>
+          </div>
+
+          {/* Tab content */}
+          {sidebarTab === 'annotations' ? (
+            <div className="flex-1 flex flex-col min-h-0 p-3 border-t border-ink-700">
+              <div className="flex-1 overflow-y-auto space-y-2">
+                {annotations.length === 0 ? (
+                  <div className="text-xs text-ink-500">No annotations yet</div>
+                ) : (
+                  annotations.map((a) => (
+                    <div key={a.id} className="text-xs bg-ink-700 p-2 rounded text-ink-200">
+                      <div className="font-semibold">{a.tool}</div>
+                      <div className="text-ink-400">by {a.author}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+              <button
+                onClick={clearAnnotations}
+                className="mt-2 px-2 py-1 bg-red-500/20 text-red-300 rounded text-xs hover:bg-red-500/30 transition"
+              >
+                Clear All
+              </button>
+            </div>
+          ) : (
+            <ChatPanel
+              messages={chat}
+              selfId={signaling.selfId}
+              onSend={sendChat}
+            />
+          )}
+        </SidePanel>
       </div>
     </div>
   );
