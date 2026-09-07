@@ -140,18 +140,18 @@ export default function SessionPage() {
       <div className="flex-1 flex flex-col sm:flex-row min-h-0">
         <div className="flex-1 relative flex items-center justify-center bg-black min-h-0 sm:min-h-full">
           <VideoTile
-            stream={peer.remoteStream}
-            muted={false}
-            label="Remote"
-            isRemote
+            stream={media.stream}
+            muted
+            label="You"
+            isRemote={false}
             connectionState={peer.connectionState}
           />
           <div className="absolute top-3 right-3 sm:top-4 sm:right-4 w-24 sm:w-32 md:w-40 aspect-[3/4] rounded-lg sm:rounded-xl overflow-hidden border-2 border-ink-700 shadow-lg z-20">
             <VideoTile
-              stream={media.stream}
-              muted
-              label="You"
-              isRemote={false}
+              stream={peer.remoteStream}
+              muted={false}
+              label="Remote"
+              isRemote
               connectionState={peer.connectionState}
             />
           </div>
