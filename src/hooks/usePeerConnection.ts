@@ -16,7 +16,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-export type SignalKind = 'offer' | 'answer' | 'candidate' | 'bye' | 'hello';
+export type SignalKind = 'offer' | 'answer' | 'candidate' | 'bye' | 'hello' | 'sharing';
 
 export interface SignalEnvelope {
   /** Which peer sent this message. */
