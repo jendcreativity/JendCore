@@ -57,20 +57,16 @@ export default function SessionPage() {
     signaling.send({
       from: signaling.selfId,
       to: '*',
-      kind: 'hello',
-      payload: { 
-        kind: 'sharing-state', 
-        sharingPeerId: newSharingState 
-      },
+      kind: 'sharing',
+      payload: newSharingState,
     });
   }, [signaling, sharingPeerId]);
 
   // Listen for sharing state changes
   useEffect(() => {
     const unsub = signaling.subscribe((msg: SignalEnvelope) => {
-      const payload = msg.payload as any;
-      if (payload?.kind === 'sharing-state') {
-        setSharingPeerId(payload.sharingPeerId);
+      if (msg.kind === 'sharing') {
+        setSharingPeerId(msg.payload as string | null);
       }
     });
     return unsub;
@@ -167,7 +163,7 @@ export default function SessionPage() {
         </div>
       )}
       <div className="flex-1 flex flex-col sm:flex-row min-h-0">
-        <div className="flex-1 relative flex items-center justify-center bg-black min-h-0 sm:min-h-full">
+        <div className="flex-1 relative flex items-center justify-center bg-black min-h-0 sm:min-h-full order-2 sm:order-1">
           {/* Main video: show whoever is sharing, or default to your camera */}
           {sharingPeerId === remotePeerId ? (
             <VideoTile
@@ -188,7 +184,7 @@ export default function SessionPage() {
           )}
 
           {/* Corner video: show the other person, or your camera if remote is sharing */}
-          <div className="absolute top-3 right-3 sm:top-4 sm:right-4 w-24 sm:w-32 md:w-40 aspect-[3/4] rounded-lg sm:rounded-xl overflow-hidden border-2 border-ink-700 shadow-lg z-20">
+          <div className="absolute bottom-16 right-3 sm:top-4 sm:right-4 sm:bottom-auto w-20 sm:w-32 md:w-40 aspect-[3/4] rounded-lg sm:rounded-xl overflow-hidden border-2 border-ink-700 shadow-lg z-20">
             {sharingPeerId === remotePeerId ? (
               <VideoTile
                 stream={media.stream}
@@ -210,7 +206,7 @@ export default function SessionPage() {
 
           {/* Sharing indicator badge */}
           {sharingPeerId && (
-            <div className="absolute top-3 left-3 sm:top-4 sm:left-4 px-3 py-2 bg-blue-500 text-white rounded-lg font-semibold text-sm z-20">
+            <div className="absolute top-3 left-3 sm:top-4 sm:left-4 px-2 py-1 sm:px-3 sm:py-2 bg-blue-500 text-white rounded-lg font-semibold text-xs sm:text-sm z-20">
               {sharingPeerId === signaling.selfId ? '🔴 You are sharing' : '👁️ Remote is sharing'}
             </div>
           )}
@@ -223,7 +219,7 @@ export default function SessionPage() {
             onPatch={patchAnnotation}
           />
         </div>
-        <div className="flex flex-col bg-ink-800 border-l border-ink-700 min-h-0">
+        <div className="flex flex-col bg-ink-800 border-t sm:border-t-0 sm:border-l border-ink-700 min-h-0 order-3 sm:order-2 w-full sm:w-80 md:w-96 max-h-64 sm:max-h-none">
           <SessionControls
             micEnabled={media.micEnabled}
             cameraEnabled={media.cameraEnabled}

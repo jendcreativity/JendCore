@@ -64,7 +64,7 @@ export default function SessionControls(props: Props) {
     <div className="bg-ink-800/95 backdrop-blur border-t-2 border-ink-700 safe-bottom">
       {/* Annotation tools (when in annotations tab) */}
       {sidebarTab === 'annotations' && (
-        <div className="flex items-center gap-2 overflow-x-auto px-3 py-3 border-b border-ink-700 bg-ink-800">
+        <div className="hidden sm:flex items-center gap-2 overflow-x-auto px-3 py-3 border-b border-ink-700 bg-ink-800">
           <ToolButton
             active={annotationTool === 'freehand'}
             onClick={() => onSelectTool(annotationTool === 'freehand' ? null : 'freehand')}
@@ -108,7 +108,7 @@ export default function SessionControls(props: Props) {
       )}
 
       {/* Main controls */}
-      <div className="flex flex-wrap items-center justify-center gap-2 px-3 py-4 sm:px-4 sm:py-3">
+      <div className="flex flex-wrap items-center justify-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 sm:py-3">
         {/* Media controls */}
         <CtrlButton
           onClick={onToggleMic}
@@ -132,7 +132,7 @@ export default function SessionControls(props: Props) {
 
         <CtrlButton
           onClick={onToggleShare}
-          label={isSharing ? 'Stop Share' : 'Share Screen'}
+          label={isSharing ? 'Stop' : 'Share'}
           variant={isSharing ? 'active' : 'neutral'}
         >
           <span className="text-xl">{isSharing ? '🔴' : '📡'}</span>
@@ -143,7 +143,7 @@ export default function SessionControls(props: Props) {
         
         <CtrlButton
           onClick={() => onSelectTab('annotations')}
-          label="Annotate"
+          label="Draw"
           variant={sidebarTab === 'annotations' ? 'active' : 'neutral'}
         >
           <IconPen size={24} />
@@ -165,7 +165,7 @@ export default function SessionControls(props: Props) {
 
       {/* Active state indicator */}
       {annotationTool !== null && (
-        <p className="text-center text-xs text-ink-300 pb-3 font-medium">
+        <p className="text-center text-xs text-ink-300 pb-2 sm:pb-3 font-medium">
           Drawing mode active • Tap again to stop
         </p>
       )}
@@ -197,10 +197,10 @@ function CtrlButton({
       onClick={onClick}
       title={label}
       aria-label={label}
-      className={`h-14 w-14 sm:h-12 sm:w-12 rounded-xl flex items-center justify-center transition-colors flex-shrink-0 font-medium text-sm ${cls}`}
+      className={`h-11 w-11 sm:h-12 sm:w-12 rounded-lg sm:rounded-xl flex items-center justify-center transition-colors flex-shrink-0 font-medium text-sm ${cls}`}
     >
-      <div className="flex flex-col items-center justify-center gap-1">
-        <div>{children}</div>
+      <div className="flex flex-col items-center justify-center gap-0.5">
+        <div className="text-sm sm:text-base">{children}</div>
         <span className="hidden sm:block text-xs">{label}</span>
       </div>
     </button>
