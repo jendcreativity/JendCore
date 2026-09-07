@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { isValidSessionCode } from '../lib/sessionCode';
 import { useLocalMedia } from '../hooks/useLocalMedia';
-import { useSignaling } from '../hooks/useSignaling';
+import { useSupabaseSignaling } from '../hooks/useSupabaseSignaling';
 import { SignalEnvelope, usePeerConnection } from '../hooks/usePeerConnection';
 import AnnotationCanvas from '../components/AnnotationCanvas';
 import ChatPanel from '../components/ChatPanel';
@@ -10,6 +10,7 @@ import SessionControls from '../components/SessionControls';
 import VideoTile from '../components/VideoTile';
 import { Annotation, AnnotationTool } from '../lib/annotations';
 import { ChatMessage, createMessage } from '../lib/chat';
+
 
 export default function SessionPage() {
   const params = useParams<{ sessionId: string }>();
@@ -21,7 +22,7 @@ export default function SessionPage() {
   }
 
   const media = useLocalMedia(true);
-  const signaling = useSignaling(code);
+  const signaling = useSupabaseSignaling(code);
   const [remotePeerId, setRemotePeerId] = useState<string | null>(null);
 
   useEffect(() => {
