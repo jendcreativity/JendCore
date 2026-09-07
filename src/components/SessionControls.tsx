@@ -22,6 +22,9 @@ interface Props {
   onToggleCamera: () => void;
   onFlipCamera: () => void;
 
+  isSharing: boolean;
+  onToggleShare: () => void;
+
   chatOpen: boolean;
   onToggleChat: () => void;
 
@@ -50,6 +53,8 @@ export default function SessionControls(props: Props) {
     onToggleMic,
     onToggleCamera,
     onFlipCamera,
+    isSharing,
+    onToggleShare,
     chatOpen,
     onToggleChat,
     annotationTool,
@@ -130,6 +135,14 @@ export default function SessionControls(props: Props) {
 
         <CtrlButton onClick={onFlipCamera} label="Flip" variant="neutral">
           <IconFlipCamera size={24} />
+        </CtrlButton>
+
+        <CtrlButton
+          onClick={onToggleShare}
+          label={isSharing ? 'Stop Share' : 'Share Screen'}
+          variant={isSharing ? 'active' : 'neutral'}
+        >
+          <span className="text-xl">{isSharing ? '🔴' : '📡'}</span>
         </CtrlButton>
 
         {/* Spacer on mobile */}

@@ -47,11 +47,41 @@ export default function SessionPage() {
     localStream: media.stream,
   });
 
+  const [sharingPeerId, setSharingPeerId] = useState<string | null>(null);
+
+  const toggleShare = useCallback(() => {
+    const newSharingState = sharingPeerId === signaling.selfId ? null : signaling.selfId;
+    setSharingPeerId(newSharingState);
+    
+    // Broadcast who's sharing
+    signaling.send({
+      from: signaling.selfId,
+      to: '*',
+      kind: 'hello',
+      payload: { 
+        kind: 'sharing-state', 
+        sharingPeerId: newSharingState 
+      },
+    });
+  }, [signaling, sharingPeerId]);
+
+  // Listen for sharing state changes
+  useEffect(() => {
+    const unsub = signaling.subscribe((msg: SignalEnvelope) => {
+      const payload = msg.payload as any;
+      if (payload?.kind === 'sharing-state') {
+        setSharingPeerId(payload.sharingPeerId);
+      }
+    });
+    return unsub;
+  }, [signaling]);
+
   const [chat, setChat] = useState<ChatMessage[]>([]);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [tool, setTool] = useState<AnnotationTool | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [annotationsOpen, setAnnotationsOpen] = useState(true);
+
 
   const sendChat = useCallback(
     (text: string) => {
@@ -139,22 +169,53 @@ export default function SessionPage() {
       )}
       <div className="flex-1 flex flex-col sm:flex-row min-h-0">
         <div className="flex-1 relative flex items-center justify-center bg-black min-h-0 sm:min-h-full">
-          <VideoTile
-            stream={media.stream}
-            muted
-            label="You"
-            isRemote={false}
-            connectionState={peer.connectionState}
-          />
-          <div className="absolute top-3 right-3 sm:top-4 sm:right-4 w-24 sm:w-32 md:w-40 aspect-[3/4] rounded-lg sm:rounded-xl overflow-hidden border-2 border-ink-700 shadow-lg z-20">
+          {/* Main video: show whoever is sharing, or default to your camera */}
+          {sharingPeerId === remotePeerId ? (
             <VideoTile
               stream={peer.remoteStream}
               muted={false}
-              label="Remote"
+              label="Remote Sharing"
               isRemote
               connectionState={peer.connectionState}
             />
+          ) : (
+            <VideoTile
+              stream={media.stream}
+              muted
+              label="You"
+              isRemote={false}
+              connectionState={peer.connectionState}
+            />
+          )}
+
+          {/* Corner video: show the other person, or your camera if remote is sharing */}
+          <div className="absolute top-3 right-3 sm:top-4 sm:right-4 w-24 sm:w-32 md:w-40 aspect-[3/4] rounded-lg sm:rounded-xl overflow-hidden border-2 border-ink-700 shadow-lg z-20">
+            {sharingPeerId === remotePeerId ? (
+              <VideoTile
+                stream={media.stream}
+                muted
+                label="You"
+                isRemote={false}
+                connectionState={peer.connectionState}
+              />
+            ) : (
+              <VideoTile
+                stream={peer.remoteStream}
+                muted={false}
+                label="Remote"
+                isRemote
+                connectionState={peer.connectionState}
+              />
+            )}
           </div>
+
+          {/* Sharing indicator badge */}
+          {sharingPeerId && (
+            <div className="absolute top-3 left-3 sm:top-4 sm:left-4 px-3 py-2 bg-blue-500 text-white rounded-lg font-semibold text-sm z-20">
+              {sharingPeerId === signaling.selfId ? '🔴 You are sharing' : '👁️ Remote is sharing'}
+            </div>
+          )}
+
           {annotationsOpen && (
             <AnnotationCanvas
               annotations={annotations}
@@ -172,6 +233,8 @@ export default function SessionPage() {
             onToggleMic={media.toggleMic}
             onToggleCamera={media.toggleCamera}
             onFlipCamera={media.flipCamera}
+            isSharing={sharingPeerId === signaling.selfId}
+            onToggleShare={toggleShare}
             annotationTool={tool}
             onSelectTool={setTool}
             annotationsOpen={annotationsOpen}
