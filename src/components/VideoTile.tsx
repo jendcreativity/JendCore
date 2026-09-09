@@ -5,6 +5,7 @@ interface Props {
   muted: boolean;
   label: string;
   cameraEnabled?: boolean;
+  micEnabled?: boolean;
   isRemote?: boolean;
   connectionState?: string;
 }
@@ -21,6 +22,7 @@ export default function VideoTile({
   muted,
   label,
   cameraEnabled = true,
+  micEnabled = true,
   isRemote = false,
   connectionState,
 }: Props) {
@@ -34,7 +36,7 @@ export default function VideoTile({
     }
   }, [stream]);
 
-  const showPlaceholder = !stream || (isRemote ? false : !cameraEnabled);
+  const showPlaceholder = !stream || !cameraEnabled;
   // Only show the remote waiting/connected placeholder when we have no remote stream.
   // Once peer.remoteStream is set we show the video, regardless of transient
   // connectionState churn. The text inside still reflects connecting vs waiting.
@@ -74,6 +76,11 @@ export default function VideoTile({
       <span className="absolute bottom-3 left-3 rounded-full bg-black/60 px-2 py-1 text-xs text-white">
         {label}
       </span>
+      {micEnabled === false && (
+        <span className="absolute bottom-3 right-3 rounded-full bg-red-500/90 px-2 py-1 text-xs text-white">
+          🔇
+        </span>
+      )}
     </div>
   );
 }

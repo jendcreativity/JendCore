@@ -59,6 +59,7 @@ export default function SessionPage() {
   });
 
   const [sharingPeerId, setSharingPeerId] = useState<string | null>(null);
+  const [remoteMediaState, setRemoteMediaState] = useState<{ micEnabled: boolean; cameraEnabled: boolean }>({ micEnabled: true, cameraEnabled: true });
 
   const toggleShare = useCallback(() => {
     const newSharingState = sharingPeerId === signaling.selfId ? null : signaling.selfId;
@@ -73,15 +74,59 @@ export default function SessionPage() {
     });
   }, [signaling, sharingPeerId]);
 
-  // Listen for sharing state changes
+  // Listen for sharing + remote mic/camera state
   useEffect(() => {
     const unsub = signaling.subscribe((msg: SignalEnvelope) => {
       if (msg.kind === 'sharing') {
         setSharingPeerId(msg.payload as string | null);
+      } else if (msg.kind === 'media-state') {
+        if (msg.from === signaling.selfId) return;
+        const p = msg.payload as { micEnabled: boolean; cameraEnabled: boolean };
+        if (typeof p?.micEnabled === 'boolean' || typeof p?.cameraEnabled === 'boolean') {
+          setRemoteMediaState({
+            micEnabled: typeof p.micEnabled === 'boolean' ? p.micEnabled : true,
+            cameraEnabled: typeof p.cameraEnabled === 'boolean' ? p.cameraEnabled : true,
+          });
+        }
       }
     });
     return unsub;
   }, [signaling]);
+
+  // Wrapped toggles that also broadcast state so remote sees same mute/camera view
+  const handleToggleMic = useCallback(() => {
+    const next = !media.micEnabled;
+    media.toggleMic();
+    signaling.send({
+      from: signaling.selfId,
+      to: '*',
+      kind: 'media-state',
+      payload: { micEnabled: next, cameraEnabled: media.cameraEnabled },
+    });
+  }, [media, signaling]);
+
+  const handleToggleCamera = useCallback(() => {
+    const next = !media.cameraEnabled;
+    media.toggleCamera();
+    signaling.send({
+      from: signaling.selfId,
+      to: '*',
+      kind: 'media-state',
+      payload: { micEnabled: media.micEnabled, cameraEnabled: next },
+    });
+  }, [media, signaling]);
+
+  // When a new peer joins, sync our current mic/camera state
+  useEffect(() => {
+    if (!remotePeerId) return;
+    signaling.send({
+      from: signaling.selfId,
+      to: remotePeerId,
+      kind: 'media-state',
+      payload: { micEnabled: media.micEnabled, cameraEnabled: media.cameraEnabled },
+    });
+  }, [remotePeerId]); // eslint-disable-line react-hooks/exhaustive-deps
+
 
   const [chat, setChat] = useState<ChatMessage[]>([]);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
@@ -184,6 +229,8 @@ export default function SessionPage() {
               muted={false}
               label="Remote Sharing"
               isRemote
+              cameraEnabled={remoteMediaState.cameraEnabled}
+              micEnabled={remoteMediaState.micEnabled}
               connectionState={peer.connectionState}
             />
           ) : (
@@ -192,6 +239,8 @@ export default function SessionPage() {
               muted
               label="You"
               isRemote={false}
+              cameraEnabled={media.cameraEnabled}
+              micEnabled={media.micEnabled}
               connectionState={peer.connectionState}
             />
           )}
@@ -252,8 +301,8 @@ export default function SessionPage() {
           <SessionControls
             micEnabled={media.micEnabled}
             cameraEnabled={media.cameraEnabled}
-            onToggleMic={media.toggleMic}
-            onToggleCamera={media.toggleCamera}
+            onToggleMic={handleToggleMic}
+            onToggleCamera={handleToggleCamera}
             onFlipCamera={media.flipCamera}
             isSharing={sharingPeerId === signaling.selfId}
             onToggleShare={toggleShare}
@@ -324,8 +373,8 @@ export default function SessionPage() {
           <SessionControls
             micEnabled={media.micEnabled}
             cameraEnabled={media.cameraEnabled}
-            onToggleMic={media.toggleMic}
-            onToggleCamera={media.toggleCamera}
+            onToggleMic={handleToggleMic}
+            onToggleCamera={handleToggleCamera}
             onFlipCamera={media.flipCamera}
             isSharing={sharingPeerId === signaling.selfId}
             onToggleShare={toggleShare}
