@@ -41,6 +41,11 @@ export function useSupabaseSignaling(sessionId: string): SignalingControls {
   const channelRef = useRef<any>(null);
   const listenersRef = useRef<Set<(env: SignalEnvelope) => void>>(new Set());
   const subscriptionRef = useRef<any>(null);
+  const peersRef = useRef<Peer[]>([]);
+
+  useEffect(() => {
+    peersRef.current = peers;
+  }, [peers]);
 
   useEffect(() => {
     const supabase = getSupabase();
@@ -149,17 +154,21 @@ export function useSupabaseSignaling(sessionId: string): SignalingControls {
   const waitForPeer = useCallback((): Promise<string> => {
     return new Promise((resolve) => {
       const check = () => {
-        const others = peers.filter((p) => p.id !== selfId);
+        const others = peersRef.current.filter((p) => p.id !== selfId);
         if (others.length > 0) {
           others.sort((a, b) => (a.id < b.id ? -1 : 1));
           resolve(others[0].id);
+          return true;
         }
+        return false;
       };
-      check();
-      const id = setInterval(check, 200);
+      if (check()) return;
+      const id = setInterval(() => {
+        if (check()) clearInterval(id);
+      }, 200);
       setTimeout(() => clearInterval(id), 120_000);
     });
-  }, [peers, selfId]);
+  }, [selfId]);
 
   return { selfId, peers, send, subscribe, waitForPeer };
 }

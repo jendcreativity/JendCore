@@ -64,7 +64,7 @@ export default function SessionControls(props: Props) {
     <div className="bg-ink-800/95 backdrop-blur border-t-2 border-ink-700 safe-bottom">
       {/* Annotation tools (when in annotations tab) */}
       {sidebarTab === 'annotations' && (
-        <div className="hidden sm:flex items-center gap-2 overflow-x-auto px-3 py-3 border-b border-ink-700 bg-ink-800">
+        <div className="flex items-center gap-2 overflow-x-auto px-3 py-3 border-b border-ink-700 bg-ink-800">
           <ToolButton
             active={annotationTool === 'freehand'}
             onClick={() => onSelectTool(annotationTool === 'freehand' ? null : 'freehand')}

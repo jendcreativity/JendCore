@@ -35,8 +35,10 @@ export default function VideoTile({
   }, [stream]);
 
   const showPlaceholder = !stream || (isRemote ? false : !cameraEnabled);
-  const showRemoteWaiting =
-    isRemote && (!stream || connectionState !== 'connected');
+  // Only show the remote waiting/connected placeholder when we have no remote stream.
+  // Once peer.remoteStream is set we show the video, regardless of transient
+  // connectionState churn. The text inside still reflects connecting vs waiting.
+  const showRemoteWaiting = isRemote && !stream;
 
   return (
     <div className="relative w-full h-full bg-black flex items-center justify-center overflow-hidden">
@@ -45,7 +47,7 @@ export default function VideoTile({
         autoPlay
         playsInline
         muted={muted}
-        className={`w-full h-full object-contain ${
+        className={`w-full h-full object-contain ${isRemote ? '' : 'scale-x-[-1] '} ${
           showPlaceholder ? 'hidden' : ''
         }`}
       />

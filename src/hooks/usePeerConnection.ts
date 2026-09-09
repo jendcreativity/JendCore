@@ -73,6 +73,20 @@ export function usePeerConnection(
     useState<ConnectionState>('idle');
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
 
+  // Reset PC when remoteId switches from placeholder to real peer
+  const prevRemoteRef = useRef<string>(remoteId);
+  useEffect(() => {
+    if (prevRemoteRef.current !== remoteId) {
+      if (pcRef.current) {
+        try { pcRef.current.close(); } catch {}
+        pcRef.current = null;
+      }
+      setRemoteStream(null);
+      setConnectionState(remoteId === '__no_remote__' ? 'idle' : 'connecting');
+      prevRemoteRef.current = remoteId;
+    }
+  }, [remoteId]);
+
   // Helper: tear down any existing connection.
   const close = useCallback(() => {
     if (pcRef.current) {

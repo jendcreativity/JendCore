@@ -27,12 +27,22 @@ export default function SessionPage() {
   const [remotePeerId, setRemotePeerId] = useState<string | null>(null);
 
   useEffect(() => {
+    const others = signaling.peers.filter((p) => p.id !== signaling.selfId);
+    if (others.length > 0) {
+      others.sort((a, b) => (a.id < b.id ? -1 : 1));
+      const next = others[0].id;
+      setRemotePeerId((prev) => (prev !== next ? next : prev));
+    }
+  }, [signaling.peers, signaling.selfId]);
+
+  useEffect(() => {
+    if (remotePeerId) return;
     let cancelled = false;
     signaling.waitForPeer().then((id: string) => {
       if (!cancelled) setRemotePeerId(id);
     });
     return () => { cancelled = true; };
-  }, [signaling]);
+  }, [signaling, remotePeerId]);
 
   const initiator = useMemo(() => {
     if (!remotePeerId) return false;
@@ -213,6 +223,11 @@ export default function SessionPage() {
               {sharingPeerId === signaling.selfId ? '🔴 You are sharing' : '👁️ Remote is sharing'}
             </div>
           )}
+
+          {/* Connection status badge - single source, mirrored for both peers */}
+          <div className="absolute top-3 right-3 sm:top-4 sm:right-4 px-2 py-1 bg-black/60 text-white rounded-full text-xs z-20">
+            {peer.remoteStream ? '● Connected' : peer.connectionState === 'connecting' ? '○ Connecting…' : '○ Waiting for peer…'}
+          </div>
 
           {/* Mobile panel toggle button */}
           <button

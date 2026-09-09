@@ -22,14 +22,14 @@ export default function SidePanel({ isOpen, onClose, children }: Props) {
         />
       )}
 
-      {/* Panel */}
+      {/* Panel - mobile only; desktop uses dedicated sidebar in SessionPage */}
       <div
-        className={`fixed sm:static right-0 top-0 bottom-0 w-80 sm:w-96 bg-ink-800 border-l border-ink-700 flex flex-col min-h-0 transition-transform duration-200 z-40 sm:z-auto ${
-          isOpen ? 'translate-x-0' : 'translate-x-full sm:translate-x-0'
+        className={`fixed right-0 top-0 bottom-0 w-80 bg-ink-800 border-l border-ink-700 flex flex-col min-h-0 transition-transform duration-200 z-40 sm:hidden ${
+          isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
         {/* Close button (mobile only) */}
-        <div className="sm:hidden flex items-center justify-between px-3 py-2 border-b border-ink-700 bg-ink-900">
+        <div className="flex items-center justify-between px-3 py-2 border-b border-ink-700 bg-ink-900">
           <h2 className="text-sm font-semibold text-white">Session</h2>
           <button
             onClick={onClose}
