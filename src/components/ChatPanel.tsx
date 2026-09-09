@@ -33,50 +33,49 @@ export default function ChatPanel({ messages, selfId, onSend, onClose }: Props) 
   }
 
   return (
-    <div className="flex flex-col h-full bg-ink-800 border-l border-ink-700 w-full sm:w-80">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-ink-700">
-        <h2 className="font-semibold text-white">Chat</h2>
+    <div className="flex flex-col h-full bg-ink-900 border-l border-ink-700 w-full max-w-md mx-auto">
+      <div className="flex items-center justify-between px-3 py-2.5 border-b border-ink-700">
+        <h2 className="font-semibold text-base text-white">Chat</h2>
         {onClose && (
           <button
             type="button"
             onClick={onClose}
-            className="text-ink-300 hover:text-white text-sm"
+            className="p-1.5 hover:bg-ink-700 rounded-lg transition-colors"
             aria-label="Close chat"
           >
-            Close
+            <svg className="w-5 h-5 text-ink-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
         )}
       </div>
 
       <div
         ref={listRef}
-        className="flex-1 overflow-y-auto px-4 py-3 space-y-2"
+        className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5 min-h-0"
         role="log"
         aria-live="polite"
       >
         {messages.length === 0 && (
-          <p className="text-sm text-ink-400 text-center mt-8">
-            No messages yet. Say hello.
-          </p>
+          <div className="flex items-center justify-center h-full text-ink-400">
+            <p className="text-sm text-center">No messages yet.<br/>Say hello!</p>
+          </div>
         )}
         {messages.map((m) => {
           const mine = m.author === selfId;
           return (
             <div
               key={m.id}
-              className={`flex flex-col ${mine ? 'items-end' : 'items-start'}`}
+              className={`flex ${mine ? 'justify-end' : 'justify-start'} mb-1.5`}
             >
               <div
-                className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${
+                className={`inline-block max-w-[85%] sm:max-w-xs rounded-2xl px-3 py-2 text-sm font-medium shadow-sm ${
                   mine
                     ? 'bg-accent-500 text-white rounded-br-sm'
-                    : 'bg-ink-700 text-ink-50 rounded-bl-sm'
+                    : 'bg-ink-700 text-ink-50 rounded-bl-sm border border-ink-600'
                 }`}
               >
                 {m.text}
-              </div>
-              <div className="mt-0.5 text-[10px] uppercase tracking-wider text-ink-400">
-                {mine ? 'You' : m.author.slice(0, 6)}
               </div>
             </div>
           );
@@ -85,7 +84,7 @@ export default function ChatPanel({ messages, selfId, onSend, onClose }: Props) 
 
       <form
         onSubmit={submit}
-        className="border-t border-ink-700 p-3 flex gap-2 safe-bottom"
+        className="border-t border-ink-700 p-2.5 flex gap-1.5 safe-bottom bg-ink-900/95 backdrop-blur-sm"
       >
         <label htmlFor="chat-input" className="sr-only">
           Message
@@ -95,16 +94,18 @@ export default function ChatPanel({ messages, selfId, onSend, onClose }: Props) 
           type="text"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="Type a message…"
+          placeholder="Type a message..."
           autoComplete="off"
-          className="flex-1 h-11 rounded-xl bg-ink-700 border border-ink-600 px-3 text-white placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-accent-500"
+          className="flex-1 h-9 sm:h-10 rounded-full bg-ink-800/80 border border-ink-600 px-4 text-sm text-white placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:bg-ink-800/100 transition-all"
         />
         <button
           type="submit"
-          className="h-11 px-4 rounded-xl bg-accent-500 hover:bg-accent-600 text-white font-semibold disabled:opacity-50"
+          className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-accent-500 hover:bg-accent-600 active:bg-accent-700 text-white font-semibold disabled:opacity-50 flex items-center justify-center transition-colors shadow-sm"
           disabled={!draft.trim()}
         >
-          Send
+          <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 4v-7h-4v3l-9-4v-3h4V9l-7-4v13l4 2z" />
+          </svg>
         </button>
       </form>
     </div>

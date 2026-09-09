@@ -30,13 +30,14 @@ export default function SidePanel({ isOpen, onClose, children }: Props) {
       >
         {/* Close button (mobile only) */}
         <div className="sm:hidden flex items-center justify-between px-3 py-2 border-b border-ink-700 bg-ink-900">
-          <h2 className="text-sm font-semibold text-white">Controls</h2>
+          <h2 className="text-sm font-semibold text-white">Session</h2>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-ink-700 rounded transition"
-            aria-label="Close panel"
+            className="p-2 hover:bg-ink-700 rounded transition flex items-center gap-2"
+            aria-label="Back to main screen"
           >
             <IconClose size={20} />
+            <span className="text-xs">Back</span>
           </button>
         </div>
 
