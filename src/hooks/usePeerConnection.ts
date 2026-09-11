@@ -68,6 +68,7 @@ export function usePeerConnection(
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const makingOfferRef = useRef(false);
   const ignoreOfferRef = useRef(false);
+  const remoteStreamRef = useRef<MediaStream | null>(null);
 
   const [connectionState, setConnectionState] =
     useState<ConnectionState>('idle');
@@ -81,6 +82,7 @@ export function usePeerConnection(
         try { pcRef.current.close(); } catch {}
         pcRef.current = null;
       }
+      remoteStreamRef.current = null;
       setRemoteStream(null);
       setConnectionState(remoteId === '__no_remote__' ? 'idle' : 'connecting');
       prevRemoteRef.current = remoteId;
@@ -97,6 +99,7 @@ export function usePeerConnection(
       pcRef.current.close();
       pcRef.current = null;
     }
+    remoteStreamRef.current = null;
     setRemoteStream(null);
   }, []);
 
@@ -126,7 +129,11 @@ export function usePeerConnection(
 
     pc.ontrack = (event) => {
       const [stream] = event.streams;
-      if (stream) setRemoteStream(stream);
+      if (stream) {
+        if (remoteStreamRef.current && remoteStreamRef.current.id === stream.id) return;
+        remoteStreamRef.current = stream;
+        setRemoteStream(stream);
+      }
     };
 
     pc.onicecandidate = (event) => {

@@ -7,6 +7,7 @@ import { SignalEnvelope, usePeerConnection } from '../hooks/usePeerConnection';
 import AnnotationCanvas from '../components/AnnotationCanvas';
 import ChatPanel from '../components/ChatPanel';
 import SessionControls from '../components/SessionControls';
+import ShareSheet from '../components/ShareSheet';
 import SidePanel from '../components/SidePanel';
 import VideoTile from '../components/VideoTile';
 import { Annotation, AnnotationTool } from '../lib/annotations';
@@ -253,6 +254,8 @@ export default function SessionPage() {
                 muted
                 label="You"
                 isRemote={false}
+                cameraEnabled={media.cameraEnabled}
+                micEnabled={media.micEnabled}
                 connectionState={peer.connectionState}
               />
             ) : (
@@ -261,6 +264,8 @@ export default function SessionPage() {
                 muted={false}
                 label="Remote"
                 isRemote
+                cameraEnabled={remoteMediaState.cameraEnabled}
+                micEnabled={remoteMediaState.micEnabled}
                 connectionState={peer.connectionState}
               />
             )}
@@ -337,6 +342,11 @@ export default function SessionPage() {
             </button>
           </div>
 
+          {/* Invite share — inside session so user can re-share anytime */}
+          <div className="p-3 border-t border-ink-700">
+            <ShareSheet url={`${window.location.origin}/s/${code}`} code={code} compact />
+          </div>
+
           {/* Tab content */}
           {sidebarTab === 'annotations' ? (
             <div className="flex-1 flex flex-col min-h-0 p-3 border-t border-ink-700">
@@ -385,6 +395,9 @@ export default function SessionPage() {
             onClearAnnotations={clearAnnotations}
             onEnd={endSession}
           />
+          <div className="p-3 border-y border-ink-700">
+            <ShareSheet url={`${window.location.origin}/s/${code}`} code={code} compact />
+          </div>
           {/* Sidebar tabs */}
           <div className="flex border-b border-ink-700">
             <button

@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import PrimaryButton from '../components/PrimaryButton';
-import { IconCheck, IconCopy } from '../components/Icon';
+import ShareSheet from '../components/ShareSheet';
 import { generateSessionCode } from '../lib/sessionCode';
 
 /**
@@ -20,28 +20,6 @@ export default function StartSessionPage() {
   const navigate = useNavigate();
   const code = useMemo(() => generateSessionCode(), []);
   const shareUrl = `${window.location.origin}/s/${code}`;
-  const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    if (!copied) return;
-    const t = setTimeout(() => setCopied(false), 2000);
-    return () => clearTimeout(t);
-  }, [copied]);
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      setCopied(true);
-    } catch {
-      const input = document.createElement('input');
-      input.value = shareUrl;
-      document.body.appendChild(input);
-      input.select();
-      document.execCommand('copy');
-      document.body.removeChild(input);
-      setCopied(true);
-    }
-  }
 
   return (
     <main className="min-h-full flex flex-col items-center justify-center px-4 py-8 sm:px-6 sm:py-12 safe-top safe-bottom">
@@ -70,12 +48,13 @@ export default function StartSessionPage() {
           <div className="flex-1 h-px bg-ink-700" />
         </div>
 
+        {/* Share link — copy + social / SMS / email / native share */}
+        <div className="mt-8">
+          <ShareSheet url={shareUrl} code={code} />
+        </div>
+
         {/* Actions */}
-        <div className="mt-8 flex flex-col gap-3">
-          <PrimaryButton onClick={copy} fullWidth size="lg" className="h-14 text-base font-semibold">
-            {copied ? <IconCheck size={22} /> : <IconCopy size={22} />}
-            {copied ? 'Link copied!' : 'Copy invite link'}
-          </PrimaryButton>
+        <div className="mt-6 flex flex-col gap-3">
 
           <PrimaryButton 
             onClick={() => navigate(`/s/${code}`)} 

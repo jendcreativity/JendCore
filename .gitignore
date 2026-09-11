@@ -37,3 +37,9 @@ pnpm-debug.log*
 coverage
 .cache
 .parcel-cache
+
+# verify
+vite.config.verify.ts
+
+# temp downloads
+dl-*.tgz
