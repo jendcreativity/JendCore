@@ -58,7 +58,7 @@ export function useLocalMedia(autoStart = true): LocalMediaControls {
 
   const stop = useCallback(() => {
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current.getTracks().forEach((t: MediaStreamTrack) => t.stop());
       streamRef.current = null;
       setStream(null);
     }
@@ -82,16 +82,16 @@ export function useLocalMedia(autoStart = true): LocalMediaControls {
         const next = await navigator.mediaDevices.getUserMedia(constraints);
         // Replace any prior tracks so old hardware LEDs go off.
         if (streamRef.current) {
-          streamRef.current.getTracks().forEach((t) => t.stop());
+          streamRef.current.getTracks().forEach((t: MediaStreamTrack) => t.stop());
         }
         streamRef.current = next;
         setStream(next);
         // Honour initial toggle states if user disabled them earlier.
         next.getAudioTracks().forEach(
-          (t) => (t.enabled = micEnabledRef.current),
+          (t: MediaStreamTrack) => (t.enabled = micEnabledRef.current),
         );
         next.getVideoTracks().forEach(
-          (t) => (t.enabled = cameraEnabledRef.current),
+          (t: MediaStreamTrack) => (t.enabled = cameraEnabledRef.current),
         );
         setFacing(preferredFacing);
       } catch (err) {
@@ -154,7 +154,7 @@ export function useLocalMedia(autoStart = true): LocalMediaControls {
   const toggleMic = useCallback(() => {
     setMicEnabled((prev) => {
       const next = !prev;
-      streamRef.current?.getAudioTracks().forEach((t) => (t.enabled = next));
+      streamRef.current?.getAudioTracks().forEach((t: MediaStreamTrack) => (t.enabled = next));
       return next;
     });
   }, []);
@@ -162,7 +162,7 @@ export function useLocalMedia(autoStart = true): LocalMediaControls {
   const toggleCamera = useCallback(() => {
     setCameraEnabled((prev) => {
       const next = !prev;
-      streamRef.current?.getVideoTracks().forEach((t) => (t.enabled = next));
+      streamRef.current?.getVideoTracks().forEach((t: MediaStreamTrack) => (t.enabled = next));
       return next;
     });
   }, []);
@@ -186,8 +186,8 @@ export function useLocalMedia(autoStart = true): LocalMediaControls {
       // releases the hardware lock (stop + pause) before retrying.
       const tryVideo = async (constraints: MediaStreamConstraints): Promise<MediaStreamTrack | null> => {
         try {
-          const s = await navigator.mediaDevices.getUserMedia(constraints);
-          if (tmp) tmp.getTracks().forEach((t) => { try { t.stop(); } catch {} });
+          const s: MediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+          if ((tmp as unknown as MediaStream | null)) (tmp as unknown as MediaStream).getTracks().forEach((t: MediaStreamTrack) => { try { t.stop(); } catch {} });
           tmp = s;
           return s.getVideoTracks()[0] ?? null;
         } catch (e) {
@@ -195,12 +195,12 @@ export function useLocalMedia(autoStart = true): LocalMediaControls {
           const name = lastErr?.name;
           if (name === 'NotReadableError' || name === 'AbortError') {
             try {
-              current.getVideoTracks().forEach((t) => { try { t.enabled = false; } catch {} });
+              current.getVideoTracks().forEach((t: MediaStreamTrack) => { try { t.enabled = false; } catch {} });
               await new Promise<void>((r) => setTimeout(r, 120));
-              current.getVideoTracks().forEach((t) => { try { t.stop(); } catch {} });
+              current.getVideoTracks().forEach((t: MediaStreamTrack) => { try { t.stop(); } catch {} });
               await new Promise<void>((r) => setTimeout(r, 180));
-              const s2 = await navigator.mediaDevices.getUserMedia(constraints);
-              if (tmp) tmp.getTracks().forEach((t) => { try { t.stop(); } catch {} });
+              const s2: MediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+              if ((tmp as unknown as MediaStream | null)) (tmp as unknown as MediaStream).getTracks().forEach((t: MediaStreamTrack) => { try { t.stop(); } catch {} });
               tmp = s2;
               lastErr = null;
               return s2.getVideoTracks()[0] ?? null;
@@ -216,20 +216,20 @@ export function useLocalMedia(autoStart = true): LocalMediaControls {
       // 1) Try the other deviceId (best on iOS where facingMode is ignored).
       try {
         const devs = await navigator.mediaDevices.enumerateDevices();
-        const cams = devs.filter((d) => d.kind === 'videoinput');
+        const cams = devs.filter((d: MediaDeviceInfo) => d.kind === 'videoinput');
         if (cams.length >= 2) {
           const cur = current.getVideoTracks()[0];
           const curId = (cur?.getSettings?.().deviceId as string) || null;
-          let next = curId ? cams.find((c) => c.deviceId !== curId) : null;
+          let next = curId ? cams.find((c: MediaDeviceInfo) => c.deviceId !== curId) : null;
           if (!next) {
             const wantBack = target === 'environment';
             next =
-              cams.find((c) => {
+              cams.find((c: MediaDeviceInfo) => {
                 const l = (c.label || '').toLowerCase();
                 const isBack = l.includes('back') || l.includes('rear') || l.includes('environment');
                 return wantBack ? isBack : !isBack;
               }) ||
-              cams.find((c) => c.deviceId !== curId) ||
+              cams.find((c: MediaDeviceInfo) => c.deviceId !== curId) ||
               cams[0];
           }
           if (next?.deviceId) {
@@ -249,14 +249,14 @@ export function useLocalMedia(autoStart = true): LocalMediaControls {
       }
 
       // 3) Plain video (any camera) — last resort, still audio:false.
-      if (!newTrack && lastErr && (lastErr.name === 'OverconstrainedError' || lastErr.name === 'NotFoundError')) {
+      if (!newTrack && (lastErr as DOMException | null) && (((lastErr as unknown as DOMException).name === 'OverconstrainedError') || ((lastErr as unknown as DOMException).name === 'NotFoundError'))) {
         newTrack = await tryVideo({ video: true, audio: false } as MediaStreamConstraints);
       }
 
       if (!newTrack) {
         try {
           const devs = await navigator.mediaDevices.enumerateDevices();
-          if (devs.filter((d) => d.kind === 'videoinput').length === 1) {
+          if (devs.filter((d: MediaDeviceInfo) => d.kind === 'videoinput').length === 1) {
             setPermissionError('Only one camera was found on this device.');
             return;
           }
@@ -266,11 +266,11 @@ export function useLocalMedia(autoStart = true): LocalMediaControls {
 
       // Success: combine preserved audio with new video. Peer effect will replaceTrack.
       const old = streamRef.current!;
-      old.getVideoTracks().forEach((t) => { try { t.stop(); } catch {} });
-      if (tmp) tmp.getTracks().forEach((t) => { if (t !== newTrack) try { t.stop(); } catch {} });
+      old.getVideoTracks().forEach((t: MediaStreamTrack) => { try { t.stop(); } catch {} });
+      if ((tmp as unknown as MediaStream | null)) (tmp as unknown as MediaStream).getTracks().forEach((t: MediaStreamTrack) => { if (t !== newTrack) try { t.stop(); } catch {} });
       newTrack.enabled = cameraEnabledRef.current;
-      audios.forEach((t) => { try { t.enabled = micEnabledRef.current; } catch {} });
-      const combined = new MediaStream([...audios, newTrack]);
+      audios.forEach((t: MediaStreamTrack) => { try { t.enabled = micEnabledRef.current; } catch {} });
+      const combined: MediaStream = new MediaStream([...audios, newTrack]);
       streamRef.current = combined;
       setStream(combined);
       setFacing(target);
