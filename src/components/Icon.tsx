@@ -166,6 +166,38 @@ export const IconClose = (p: IconProps) => (
   <Icon {...p}>
     <line x1="18" y1="6" x2="6" y2="18" />
     <line x1="6" y1="6" x2="18" y2="18" />
-    <circle cx="12" cy="13" r="4" />
+  </Icon>
+);
+
+export const IconUsers = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </Icon>
+);
+
+export const IconShare = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="18" cy="5" r="3" />
+    <circle cx="6" cy="12" r="3" />
+    <circle cx="18" cy="19" r="3" />
+    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+  </Icon>
+);
+
+export const IconMore = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
+    <circle cx="19" cy="12" r="1" fill="currentColor" stroke="none" />
+    <circle cx="5" cy="12" r="1" fill="currentColor" stroke="none" />
+  </Icon>
+);
+
+export const IconChevronLeft = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M15 18l-6-6 6-6" />
   </Icon>
 );

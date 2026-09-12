@@ -33,22 +33,13 @@ export default function ChatPanel({ messages, selfId, onSend, onClose }: Props) 
   }
 
   return (
-    <div className="flex flex-col h-full bg-ink-900 border-l border-ink-700 w-full max-w-md mx-auto">
-      <div className="flex items-center justify-between px-3 py-2.5 border-b border-ink-700">
-        <h2 className="font-semibold text-base text-white">Chat</h2>
-        {onClose && (
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 hover:bg-ink-700 rounded-lg transition-colors"
-            aria-label="Close chat"
-          >
-            <svg className="w-5 h-5 text-ink-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        )}
-      </div>
+    <div className="flex flex-col h-full bg-[#0b1220] w-full">
+      {/* Header is handled by Sheet — duplicate removed when inside Sheet, keep minimal inline title for standalone use */}
+      {onClose ? null : (
+        <div className="flex items-center justify-between px-3 py-2.5 border-b border-white/10">
+          <h2 className="font-semibold text-base text-white">Chat</h2>
+        </div>
+      )}
 
       <div
         ref={listRef}
@@ -71,8 +62,8 @@ export default function ChatPanel({ messages, selfId, onSend, onClose }: Props) 
               <div
                 className={`inline-block max-w-[85%] sm:max-w-xs rounded-2xl px-3 py-2 text-sm font-medium shadow-sm ${
                   mine
-                    ? 'bg-accent-500 text-white rounded-br-sm'
-                    : 'bg-ink-700 text-ink-50 rounded-bl-sm border border-ink-600'
+                    ? 'bg-[#1877F2] text-white rounded-br-sm'
+                    : 'bg-white/10 text-white rounded-bl-sm border border-white/10'
                 }`}
               >
                 {m.text}
@@ -84,7 +75,7 @@ export default function ChatPanel({ messages, selfId, onSend, onClose }: Props) 
 
       <form
         onSubmit={submit}
-        className="border-t border-ink-700 p-2.5 flex gap-1.5 safe-bottom bg-ink-900/95 backdrop-blur-sm"
+        className="border-t border-white/10 p-2.5 flex gap-1.5 safe-bottom bg-[#0b1220]/95 backdrop-blur-sm"
       >
         <label htmlFor="chat-input" className="sr-only">
           Message
@@ -96,11 +87,11 @@ export default function ChatPanel({ messages, selfId, onSend, onClose }: Props) 
           onChange={(e) => setDraft(e.target.value)}
           placeholder="Type a message..."
           autoComplete="off"
-          className="flex-1 h-9 sm:h-10 rounded-full bg-ink-800/80 border border-ink-600 px-4 text-sm text-white placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:bg-ink-800/100 transition-all"
+          className="flex-1 h-9 sm:h-10 rounded-full bg-white/[0.08] border border-white/15 px-4 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#1877F2] focus:bg-white/[0.12] transition-all"
         />
         <button
           type="submit"
-          className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-accent-500 hover:bg-accent-600 active:bg-accent-700 text-white font-semibold disabled:opacity-50 flex items-center justify-center transition-colors shadow-sm"
+          className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-[#1877F2] hover:bg-[#0F5FCC] active:bg-[#0d4fb3] text-white font-semibold disabled:opacity-50 flex items-center justify-center transition-colors shadow-sm"
           disabled={!draft.trim()}
         >
           <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

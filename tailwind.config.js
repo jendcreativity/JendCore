@@ -4,7 +4,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        // JendCore brand palette
+        // JendCore brand palette — refined for modern workspace
         ink: {
           50: '#f5f7fb',
           100: '#e6ebf5',
@@ -19,8 +19,13 @@ export default {
         },
         accent: {
           400: '#60a5fa',
-          500: '#3b82f6',
-          600: '#2563eb',
+          500: '#1877F2',
+          600: '#0F5FCC',
+        },
+        jend: {
+          blue: '#1877F2',
+          deep: '#0F5FCC',
+          destructive: '#DC2626',
         },
       },
       fontFamily: {
