@@ -13,7 +13,8 @@ interface Props {
 /**
  * Renders a single MediaStream into a <video> element.
  *
- * - The local preview is always muted to prevent feedback.
+ * - The local preview is always muted to prevent feedback and mirrored (scaleX(-1)) for front-camera.
+ * - Remote video is NEVER mirrored (real-world orientation).
  * - When the camera is off we show an informative placeholder instead
  *   of a frozen last-frame.
  */
@@ -34,6 +35,10 @@ export default function VideoTile({
     if (el.srcObject !== stream) {
       el.srcObject = stream;
     }
+    if (stream) {
+      const pr = el.play();
+      if (pr && typeof (pr as Promise<void>).catch === 'function') (pr as Promise<void>).catch(() => {});
+    }
   }, [stream]);
 
   const showPlaceholder = !stream || !cameraEnabled;
@@ -49,7 +54,7 @@ export default function VideoTile({
         autoPlay
         playsInline
         muted={muted}
-        className={`w-full h-full object-contain ${isRemote ? '' : 'scale-x-[-1] '} ${
+        className={`w-full h-full object-cover ${isRemote ? '' : 'scale-x-[-1] '} ${
           showPlaceholder ? 'hidden' : ''
         }`}
       />

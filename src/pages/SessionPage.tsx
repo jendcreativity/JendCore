@@ -200,7 +200,7 @@ export default function SessionPage() {
         <Stage
           topBar={<TopBar code={code} connectionLabel={connectionLabel} />}
           toolbar={annotateActive ? <AnnotationToolbar tool={tool} onSelect={setTool} onClear={clearAnnotations} onClose={() => setTool(null)} /> : null}
-          corner={<VideoTile stream={pipStream} muted={!isRemoteSharing} label={pipLabel} isRemote={!isRemoteSharing} cameraEnabled={pipCameraEnabled} micEnabled={pipMicEnabled} connectionState={!isRemoteSharing ? peer.connectionState : undefined} />}
+          corner={<VideoTile stream={pipStream} muted={isRemoteSharing} label={pipLabel} isRemote={!isRemoteSharing} cameraEnabled={pipCameraEnabled} micEnabled={pipMicEnabled} connectionState={!isRemoteSharing ? peer.connectionState : undefined} />}
         >
           <div className="absolute inset-0">
             <VideoTile stream={mainStream} muted={!isRemoteSharing} label={mainLabel} isRemote={isRemoteSharing} cameraEnabled={mainCameraEnabled} micEnabled={mainMicEnabled} connectionState={isRemoteSharing ? peer.connectionState : undefined} />

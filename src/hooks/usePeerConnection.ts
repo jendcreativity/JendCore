@@ -128,11 +128,34 @@ export function usePeerConnection(
     };
 
     pc.ontrack = (event) => {
-      const [stream] = event.streams;
-      if (stream) {
-        if (remoteStreamRef.current && remoteStreamRef.current.id === stream.id) return;
-        remoteStreamRef.current = stream;
-        setRemoteStream(stream);
+      // Prefer the coherent stream from the event (keeps audio+video in sync).
+      // Merge tracks if the same stream id arrives in multiple ontrack callbacks.
+      const inbound = event.streams[0];
+      const track = event.track;
+      if (inbound) {
+        const existing = remoteStreamRef.current;
+        if (existing && existing.id === inbound.id) {
+          if (track && !existing.getTracks().some((t) => t.id === track.id)) {
+            try { existing.addTrack(track); } catch {}
+            setRemoteStream(existing);
+          }
+          return;
+        }
+        remoteStreamRef.current = inbound;
+        setRemoteStream(inbound);
+        return;
+      }
+      // Fallback: track without stream (some browsers)
+      if (track) {
+        let rs = remoteStreamRef.current;
+        if (!rs) {
+          rs = new MediaStream([track]);
+          remoteStreamRef.current = rs;
+          setRemoteStream(rs);
+        } else if (!rs.getTracks().some((t) => t.id === track.id)) {
+          try { rs.addTrack(track); } catch {}
+          setRemoteStream(rs);
+        }
       }
     };
 
