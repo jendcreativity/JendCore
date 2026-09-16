@@ -65,64 +65,63 @@ export function useSupabaseSignaling(sessionId: string): SignalingControls {
 
     channelRef.current = channel;
 
-    channel.on('broadcast', { event: 'signal' }, (payload: any) => {
-      const env = payload.payload as SignalEnvelope;
-      if (!env || typeof env !== 'object') return;
-
-      // Refresh peer registry on hello / bye
-      if (env.kind === 'hello') {
-        const helloPayload = env.payload as HelloPayload;
-        setPeers((prev) => {
-          if (prev.some((p) => p.id === env.from)) return prev;
-          return [...prev, { id: env.from, joinedAt: helloPayload.joinedAt }];
-        });
-      }
-      if (env.kind === 'bye') {
-        setPeers((prev) => prev.filter((p) => p.id !== env.from));
-      }
-
-      // Notify all listeners
-      listenersRef.current.forEach((cb) => cb(env));
-    });
-
-    // Subscribe to the channel
-    subscriptionRef.current = channel.subscribe(async (status: string) => {
-      if (status === 'SUBSCRIBED') {
-        // Announce ourselves
+    const sendHello = () => {
+      try {
         channel.send({
           type: 'broadcast',
           event: 'signal',
-          payload: {
-            from: selfId,
-            to: '*',
-            kind: 'hello',
-            payload: { joinedAt: Date.now() },
-          } satisfies SignalEnvelope,
+          payload: { from: selfId, to: '*', kind: 'hello', payload: { joinedAt: Date.now() } } satisfies SignalEnvelope,
         });
+      } catch {}
+    };
+
+    channel.on('broadcast', { event: 'signal' }, (payload: any) => {
+      const env = payload.payload as SignalEnvelope;
+      if (!env || typeof env !== 'object') return;
+      if (env.kind === 'hello') {
+        if (env.from === selfId) return;
+        const helloPayload = env.payload as HelloPayload;
+        let isNew = false;
+        setPeers((prev) => {
+          if (prev.some((p) => p.id === env.from)) return prev;
+          isNew = true;
+          return [...prev, { id: env.from, joinedAt: helloPayload.joinedAt }];
+        });
+        // Ack new peer — ensures late joiner sees us even if they missed our first hello
+        if (isNew) {
+          try { window.setTimeout(() => sendHello(), 120); } catch {}
+        }
+      }
+      if (env.kind === 'bye') setPeers((prev) => prev.filter((p) => p.id !== env.from));
+      listenersRef.current.forEach((cb) => cb(env));
+    });
+
+    let helloTimer: number | null = null;
+    let helloTries = 0;
+    subscriptionRef.current = channel.subscribe(async (status: string) => {
+      if (status === 'SUBSCRIBED') {
+        sendHello();
+        // Retransmit until a peer appears or timeout — fixes missed broadcast on cross-device join
+        helloTimer = window.setInterval(() => {
+          helloTries += 1;
+          if (peersRef.current.length > 0 || helloTries > 8) {
+            if (helloTimer) window.clearInterval(helloTimer);
+            helloTimer = null; return;
+          }
+          sendHello();
+        }, 900) as unknown as number;
       }
     });
 
     return () => {
+      try { if (helloTimer) window.clearInterval(helloTimer); } catch {}
       try {
-        // Announce departure
         channel.send({
-          type: 'broadcast',
-          event: 'signal',
-          payload: {
-            from: selfId,
-            to: '*',
-            kind: 'bye',
-          } satisfies SignalEnvelope,
+          type: 'broadcast', event: 'signal',
+          payload: { from: selfId, to: '*', kind: 'bye' } satisfies SignalEnvelope,
         });
-      } catch {
-        // ignore
-      }
-
-      // Cleanup
-      if (subscriptionRef.current) {
-        supabase.removeChannel(subscriptionRef.current);
-        subscriptionRef.current = null;
-      }
+      } catch {}
+      if (subscriptionRef.current) { supabase.removeChannel(subscriptionRef.current); subscriptionRef.current = null; }
       channelRef.current = null;
     };
   }, [sessionId, selfId]);
