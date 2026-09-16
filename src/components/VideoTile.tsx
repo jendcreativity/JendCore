@@ -7,14 +7,24 @@ interface Props {
   cameraEnabled?: boolean;
   micEnabled?: boolean;
   isRemote?: boolean;
+  /** Reserved for future "Mirror Self View" toggle. Default false = true orientation. */
+  mirrorSelfView?: boolean;
+  /** @deprecated kept for compatibility; ignored — video is never mirrored by default. */
+  facing?: 'user' | 'environment';
   connectionState?: string;
 }
 
 /**
  * Renders a single MediaStream into a <video> element.
  *
- * - The local preview is always muted to prevent feedback and mirrored (scaleX(-1)) for front-camera.
- * - Remote video is NEVER mirrored (real-world orientation).
+ * Mirroring contract (presentation only, MediaStream/track untouched):
+ * - No video is mirrored by default — local preview and remote both show
+ *   true-to-reality orientation (left is left) for visual collaboration.
+ *   This applies to front ('user') and rear ('environment') cameras,
+ *   all device combos, and multi-party. No MediaStream/track transform.
+ * - Optional local mirror is available via `mirrorSelfView` (future setting):
+ *   when true, the LOCAL preview (isRemote=false) is mirrored with
+ *   `scale-x-[-1]` for selfie comfort; remote is NEVER mirrored.
  * - When the camera is off we show an informative placeholder instead
  *   of a frozen last-frame.
  */
@@ -25,6 +35,8 @@ export default function VideoTile({
   cameraEnabled = true,
   micEnabled = true,
   isRemote = false,
+  mirrorSelfView = false,
+  facing: _facing,
   connectionState,
 }: Props) {
   const ref = useRef<HTMLVideoElement | null>(null);
@@ -46,6 +58,8 @@ export default function VideoTile({
   // Once peer.remoteStream is set we show the video, regardless of transient
   // connectionState churn. The text inside still reflects connecting vs waiting.
   const showRemoteWaiting = isRemote && !stream;
+  // True orientation by default. Optional local self-view mirror only when mirrorSelfView is true; remote never mirrored.
+  const isMirrored = !isRemote && mirrorSelfView === true;
 
   return (
     <div className="relative w-full h-full bg-black flex items-center justify-center overflow-hidden">
@@ -54,9 +68,7 @@ export default function VideoTile({
         autoPlay
         playsInline
         muted={muted}
-        className={`w-full h-full object-cover ${isRemote ? '' : 'scale-x-[-1] '} ${
-          showPlaceholder ? 'hidden' : ''
-        }`}
+        className={`w-full h-full object-cover ${isMirrored ? 'scale-x-[-1] ' : ''}${showPlaceholder ? 'hidden' : ''}`}
       />
       {showPlaceholder && !showRemoteWaiting && (
         <div className="absolute inset-0 flex flex-col items-center justify-center text-ink-300">
