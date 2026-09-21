@@ -39,29 +39,69 @@
     padding-top: env(safe-area-inset-top);
   }
   .glass-panel {
-    background: rgba(17, 24, 39, 0.82);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(15, 23, 42, 0.72);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
   }
   .glass-dark {
-    background: rgba(11, 18, 32, 0.88);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    background: rgba(10, 18, 36, 0.86);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.07);
   }
   .jend-shadow {
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45), 0 1px 6px rgba(0, 0, 0, 0.35);
+  }
+  .control-shadow {
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 2px 10px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.06);
   }
   .scrollbar-thin {
     scrollbar-width: thin;
-    scrollbar-color: rgba(255,255,255,0.15) transparent;
+    scrollbar-color: rgba(255,255,255,0.14) transparent;
   }
   .scrollbar-thin::-webkit-scrollbar {
     width: 4px;
     height: 4px;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background: rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.14);
     border-radius: 999px;
+  }
+  /* subtle stage vignette so controls stay legible without covering content */
+  .stage-vignette::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(1200px 600px at 50% 100%, rgba(0,0,0,0.35), transparent 65%), linear-gradient(to top, rgba(0,0,0,0.28) 0%, transparent 22%), linear-gradient(to bottom, rgba(0,0,0,0.22) 0%, transparent 18%);
+  }
+  .field-panel {
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 14%),
+      linear-gradient(180deg, rgba(14,23,42,0.96) 0%, rgba(8,15,30,0.98) 100%);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-right: none;
+    box-shadow:
+      -20px 0 48px rgba(0,0,0,0.55),
+      -1px 0 0 rgba(255,255,255,0.06) inset,
+      0 1px 0 rgba(255,255,255,0.07) inset;
+  }
+  .handle-pill {
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.02) 55%),
+      linear-gradient(180deg, rgba(18,30,56,0.96) 0%, rgba(10,16,32,0.98) 100%);
+    border: 1px solid rgba(255,255,255,0.11);
+    border-right: none;
+    box-shadow: -8px 8px 24px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08);
+  }
+  .metal-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08) 15%, rgba(255,255,255,0.08) 85%, transparent);
+  }
+  .blue-glow {
+    box-shadow: 0 0 0 1px rgba(24,119,242,0.45), 0 0 18px rgba(24,119,242,0.35);
   }
 }
