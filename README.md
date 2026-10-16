@@ -92,8 +92,10 @@ Copy `.env.example` to `.env.local` and fill in the values you need.
 | `VITE_LICENSE_PRICE_USD`  | No       | Price in cents                                  |
 | `PAYSTACK_SECRET_KEY`     | No       | **Server-side only.** Paystack verification.    |
 
-\* Supabase is optional in development; the app uses an in-browser
-BroadcastChannel for signalling until the Supabase transport is wired up.
+\* Both Supabase values are optional: when they are empty or unset, the public
+project defaults compiled into `src/lib/supabase.ts` are used, so a deployment
+pairs devices with no configuration at all. Set them only to point a build at
+a different Supabase project.
 
 > ⚠️ Never put the Supabase **service-role key**, the Paystack secret,
 > or any other private credential in any file prefixed with `VITE_` or
@@ -109,8 +111,12 @@ See [`ARCHITECTURE.md`](./ARCHITECTURE.md) and
 1. Push this repository to GitHub.
 2. Import the project into Vercel.
 3. Vercel will detect Vite automatically. No custom build command needed.
-4. Add the environment variables listed in `.env.example` to your Vercel
-   project's **Environment Variables** section.
+4. Optionally add the environment variables listed in `.env.example` to your
+   Vercel project's **Environment Variables** section. Supabase falls back to
+   the public defaults compiled into `src/lib/supabase.ts`, so production works
+   without them. If you do define `VITE_SUPABASE_URL` or
+   `VITE_SUPABASE_ANON_KEY`, keep them **non-empty** — an empty value takes
+   precedence over `.env` files during the Vite build.
 5. Deploy. Then visit the production URL and verify camera/microphone
    permissions and PWA installation.
 
