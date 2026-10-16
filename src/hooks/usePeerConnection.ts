@@ -76,6 +76,13 @@ function buildIceServers(): RTCIceServer[] {
   return servers;
 }
 const ICE_SERVERS: RTCIceServer[] = buildIceServers();
+
+// Bounded ICE-restart retry policy. A healthy 'connected' state resets the
+// budget so a later, unrelated drop still gets a fresh set of attempts.
+const ICE_RESTART_BASE_DELAY_MS = 1200;
+const ICE_RESTART_MAX_DELAY_MS = 10_000;
+const MAX_ICE_RESTART_ATTEMPTS = 5;
+
 function isDebug(): boolean {
   try { return typeof localStorage !== 'undefined' && localStorage.getItem('jendcore:debug') === '1'; } catch { return false; }
 }
@@ -91,6 +98,7 @@ export function usePeerConnection(
   const remoteStreamRef = useRef<MediaStream | null>(null);
   const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
   const restartTimeoutRef = useRef<number | null>(null);
+  const restartAttemptsRef = useRef(0);
   const connectStartRef = useRef<number | null>(null);
 
   const [connectionState, setConnectionState] =
@@ -135,13 +143,20 @@ export function usePeerConnection(
   }, []);
   const scheduleIceRestart = useCallback(() => {
     const pc = pcRef.current; if (!pc) return; if (restartTimeoutRef.current) return;
-    if (isDebug()) console.warn('[jendcore] scheduling ICE restart');
+    if (restartAttemptsRef.current >= MAX_ICE_RESTART_ATTEMPTS) {
+      if (isDebug()) console.warn('[jendcore] ICE restart budget exhausted; waiting for the network to recover');
+      return;
+    }
+    // Bounded exponential backoff: 1.2s, 2.4s, 4.8s, 9.6s, then 10s.
+    const delay = Math.min(ICE_RESTART_BASE_DELAY_MS * 2 ** restartAttemptsRef.current, ICE_RESTART_MAX_DELAY_MS);
+    restartAttemptsRef.current += 1;
+    if (isDebug()) console.warn(`[jendcore] scheduling ICE restart attempt ${restartAttemptsRef.current} in ${delay}ms`);
     restartTimeoutRef.current = window.setTimeout(() => {
       restartTimeoutRef.current = null; const p = pcRef.current; if (!p) return;
       if (p.connectionState === 'failed' || p.connectionState === 'disconnected' || (p as any).iceConnectionState === 'failed') {
         try { p.restartIce(); if (isDebug()) console.warn('[jendcore] restartIce called'); } catch (e) { if (isDebug()) console.warn('[jendcore] restartIce error', e); }
       }
-    }, 1200);
+    }, delay);
   }, []);
 
   // Wire up a fresh RTCPeerConnection.
@@ -169,8 +184,10 @@ export function usePeerConnection(
           restartTimeoutRef.current = null;
           if (pcRef.current && pcRef.current.connectionState === 'disconnected') scheduleIceRestart();
         }, 3000) as unknown as number;
-      } else if (pc.connectionState === 'connected' && restartTimeoutRef.current) {
-        window.clearTimeout(restartTimeoutRef.current); restartTimeoutRef.current = null;
+      } else if (pc.connectionState === 'connected') {
+        // A healthy connection resets the retry budget for any future drop.
+        restartAttemptsRef.current = 0;
+        if (restartTimeoutRef.current) { window.clearTimeout(restartTimeoutRef.current); restartTimeoutRef.current = null; }
       }
     };
     (pc as any).oniceconnectionstatechange = () => {

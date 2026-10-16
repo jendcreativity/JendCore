@@ -31,13 +31,27 @@ export interface SignalingControls {
   send: (env: SignalEnvelope) => void;
   subscribe: (handler: (env: SignalEnvelope) => void) => () => void;
   waitForPeer: () => Promise<string>;
+  /**
+   * Human-readable reason the transport cannot pair devices, or null when
+   * healthy. The UI shows this instead of waiting silently forever.
+   */
+  error: string | null;
 }
 
 const CHANNEL_PREFIX = 'jendcore:session:';
 
+/** Shown when this build has no Supabase configuration at all. */
+const SIGNALING_UNAVAILABLE_MESSAGE =
+  'Real-time signalling is unavailable: this build has no Supabase configuration, so devices cannot pair. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY, then reload.';
+
+/** Shown when the Supabase Realtime channel fails or times out. */
+const SIGNALING_CHANNEL_ERROR_MESSAGE =
+  'The real-time signalling channel could not be reached. Check the network connection on this device; devices cannot pair until it recovers.';
+
 export function useSupabaseSignaling(sessionId: string): SignalingControls {
   const [selfId] = useState(() => cryptoRandomId());
   const [peers, setPeers] = useState<Peer[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const channelRef = useRef<any>(null);
   const listenersRef = useRef<Set<(env: SignalEnvelope) => void>>(new Set());
   const subscriptionRef = useRef<any>(null);
@@ -53,6 +67,7 @@ export function useSupabaseSignaling(sessionId: string): SignalingControls {
       console.warn(
         '[jendcore] Supabase not configured; signalling unavailable'
       );
+      setError(SIGNALING_UNAVAILABLE_MESSAGE);
       return;
     }
 
@@ -100,6 +115,7 @@ export function useSupabaseSignaling(sessionId: string): SignalingControls {
     let helloTries = 0;
     subscriptionRef.current = channel.subscribe(async (status: string) => {
       if (status === 'SUBSCRIBED') {
+        setError(null);
         sendHello();
         // Retransmit until a peer appears or timeout — fixes missed broadcast on cross-device join
         helloTimer = window.setInterval(() => {
@@ -110,6 +126,9 @@ export function useSupabaseSignaling(sessionId: string): SignalingControls {
           }
           sendHello();
         }, 900) as unknown as number;
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.warn('[jendcore] signalling channel status', status);
+        setError(SIGNALING_CHANNEL_ERROR_MESSAGE);
       }
     });
 
@@ -169,7 +188,7 @@ export function useSupabaseSignaling(sessionId: string): SignalingControls {
     });
   }, [selfId]);
 
-  return { selfId, peers, send, subscribe, waitForPeer };
+  return { selfId, peers, send, subscribe, waitForPeer, error };
 }
 
 function cryptoRandomId(): string {

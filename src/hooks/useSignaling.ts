@@ -32,6 +32,13 @@ export interface SignalingControls {
   subscribe: (handler: (env: SignalEnvelope) => void) => () => void;
   /** Resolve to the remote peer id once exactly one other peer is present. */
   waitForPeer: () => Promise<string>;
+  /**
+   * Signalling failure message, or null when healthy. The BroadcastChannel
+   * transport is same-browser only and cannot report a remote-service failure,
+   * so it is always null here — the field exists so both transports share one
+   * contract with `useSupabaseSignaling`.
+   */
+  error: string | null;
 }
 
 const CHANNEL_PREFIX = 'jendcore:session:';
@@ -127,7 +134,7 @@ export function useSignaling(sessionId: string): SignalingControls {
     });
   }, [peers, selfId]);
 
-  return { selfId, peers, send, subscribe, waitForPeer };
+  return { selfId, peers, send, subscribe, waitForPeer, error: null };
 }
 
 function cryptoRandomId(): string {

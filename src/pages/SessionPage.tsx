@@ -174,7 +174,15 @@ export default function SessionPage() {
 
   const annotateActive = tool !== null;
   const participantCount = signaling.peers.length + 1;
-  const connectionLabel = peer.remoteStream ? 'Connected' : peer.connectionState === 'connecting' ? 'Connecting…' : 'Waiting for peer…';
+  const connectionLabel = peer.remoteStream
+    ? 'Connected'
+    : peer.connectionState === 'connecting'
+      ? 'Connecting…'
+      : peer.connectionState === 'disconnected'
+        ? 'Reconnecting…'
+        : peer.connectionState === 'failed'
+          ? 'Connection failed'
+          : 'Waiting for peer…';
   const isRemoteSharing = sharingPeerId === remotePeerId && !!remotePeerId;
   const mainStream = isRemoteSharing ? peer.remoteStream : media.stream;
   const mainLabel = isRemoteSharing ? 'Remote' : 'You';
@@ -193,6 +201,14 @@ export default function SessionPage() {
           <div className="mx-auto max-w-3xl">
             <div className="text-xs font-bold uppercase tracking-widest text-red-200">Permission needed</div>
             <div className="mt-1 leading-snug text-red-100/90">{media.permissionError}</div>
+          </div>
+        </div>
+      )}
+      {signaling.error && (
+        <div className="relative z-40 border-b border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-100 backdrop-blur">
+          <div className="mx-auto max-w-3xl">
+            <div className="text-xs font-bold uppercase tracking-widest text-red-200">Connection problem</div>
+            <div className="mt-1 leading-snug text-red-100/90">{signaling.error}</div>
           </div>
         </div>
       )}
@@ -215,7 +231,7 @@ export default function SessionPage() {
               <span className="rounded-full bg-[#1877F2] px-2.5 py-1 text-[11px] font-bold text-white shadow">{sharingPeerId === signaling.selfId ? 'You sharing' : 'Remote sharing'}</span>
             </div>
           )}
-          {!peer.remoteStream && peer.connectionState !== 'connecting' && !isRemoteSharing && (
+          {!peer.remoteStream && peer.connectionState !== 'connecting' && !isRemoteSharing && !signaling.error && (
             <div className="pointer-events-none absolute inset-x-3 bottom-[128px] z-10 flex justify-center sm:bottom-[118px]">
               <div className="rounded-2xl bg-black/55 px-4 py-3 text-center backdrop-blur border border-white/10">
                 <div className="text-sm font-semibold text-white">Waiting for others to join</div>
