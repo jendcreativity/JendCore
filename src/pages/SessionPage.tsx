@@ -13,9 +13,10 @@ import TopBar from '../components/session/TopBar';
 import AnnotationToolbar from '../components/session/AnnotationToolbar';
 import Stage from '../components/session/Stage';
 import Sheet from '../components/session/Sheet';
+import CommandPanel, { CommandTab } from '../components/session/CommandPanel';
+import ParticipantsList from '../components/session/ParticipantsList';
 import { Annotation, AnnotationTool } from '../lib/annotations';
 import { ChatMessage, createMessage } from '../lib/chat';
-import { IconUsers } from '../components/Icon';
 
 export default function SessionPage() {
   const params = useParams<{ sessionId: string }>();
@@ -76,10 +77,14 @@ export default function SessionPage() {
   const [chat, setChat] = useState<ChatMessage[]>([]);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [tool, setTool] = useState<AnnotationTool | null>(null);
-  const [showChat, setShowChat] = useState(false);
-  const [showParticipants, setShowParticipants] = useState(false);
+  // One command panel owns Chat / Markup / People; the invite sheet stays its own.
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [panelTab, setPanelTab] = useState<CommandTab>('chat');
   const [showShare, setShowShare] = useState(false);
   const [chatUnread, setChatUnread] = useState(0);
+  // Derived chat-open state: the single source for both unread effects below,
+  // exactly replacing the old `showChat` boolean.
+  const chatOpen = panelOpen && panelTab === 'chat';
 
 
   const sendChat = useCallback(
@@ -157,15 +162,17 @@ export default function SessionPage() {
   useEffect(() => {
     const unsub = signaling.subscribe((msg: SignalEnvelope) => {
       const p = msg.payload as unknown as { kind?: string; message?: ChatMessage };
-      if (p?.kind === 'chat' && p.message && !showChat) {
+      if (p?.kind === 'chat' && p.message && !chatOpen) {
         if ((p.message as ChatMessage).author === signaling.selfId) return;
         setChatUnread((n) => n + 1);
       }
     });
     return unsub;
-  }, [signaling, showChat]);
+  }, [signaling, chatOpen]);
 
-  useEffect(() => { if (showChat) setChatUnread(0); }, [showChat]);
+  // Reset only when Chat becomes selected/open. Switching to another tab leaves
+  // the badge alone, so unread counts are never cleared by leaving Chat.
+  useEffect(() => { if (chatOpen) setChatUnread(0); }, [chatOpen]);
 
   function endSession() {
     media.stop();
@@ -194,8 +201,36 @@ export default function SessionPage() {
   const pipMicEnabled = isRemoteSharing ? media.micEnabled : remoteMediaState.micEnabled;
   const handleToggleAnnotate = useCallback(() => setTool((prev) => prev ? null : 'freehand'), []);
 
+  // Panel entry points. Each key states its intent, so the panel is never left
+  // "open with nothing selected": closing clears the open flag, and reopening
+  // always lands on the tab that matches the control used to open it.
+  const openPanel = useCallback((tab: CommandTab) => {
+    setPanelTab(tab);
+    setPanelOpen(true);
+  }, []);
+  const closePanel = useCallback(() => setPanelOpen(false), []);
+
+  // Roster excludes self: "You" is already the roster's own row, so passing the
+  // raw peer list would render the local user twice.
+  const otherPeers = useMemo(
+    () => signaling.peers.filter((p) => p.id !== signaling.selfId),
+    [signaling.peers, signaling.selfId],
+  );
+
+  // Truthful status tone for TopBar: 'live' requires a real media session (a live
+  // remote stream or a connected peer connection) — never a signaling subscription.
+  const connectionStatus: 'live' | 'connecting' | 'waiting' | 'error' = signaling.error
+    ? 'error'
+    : peer.connectionState === 'failed'
+      ? 'error'
+      : peer.remoteStream || peer.connectionState === 'connected'
+        ? 'live'
+        : peer.connectionState === 'connecting' || peer.connectionState === 'disconnected'
+          ? 'connecting'
+          : 'waiting';
+
   return (
-    <div className="fixed inset-0 flex flex-col bg-[#070d1a] text-white selection:bg-[#1877F2]/30">
+    <div className="fixed inset-0 flex flex-col bg-graphite-950 text-white selection:bg-[#1877F2]/30">
       {media.permissionError && (
         <div className="relative z-40 border-b border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-100 backdrop-blur">
           <div className="mx-auto max-w-3xl">
@@ -214,8 +249,15 @@ export default function SessionPage() {
       )}
       <div className="flex min-h-0 flex-1 flex-col">
         <Stage
-          topBar={<TopBar code={code} connectionLabel={connectionLabel} />}
-          toolbar={annotateActive ? <AnnotationToolbar tool={tool} onSelect={setTool} onClear={clearAnnotations} onClose={() => setTool(null)} /> : null}
+          topBar={<TopBar code={code} connectionLabel={connectionLabel} status={connectionStatus} />}
+          toolbar={
+            // The Markup tab presents this same toolbar inline, so the floating
+            // copy is hidden only while that tab is open (behind the panel scrim
+            // it would sit dimmed and unclickable). Tool state is untouched.
+            annotateActive && !(panelOpen && panelTab === 'markup') ? (
+              <AnnotationToolbar tool={tool} onSelect={setTool} onClear={clearAnnotations} onClose={() => setTool(null)} />
+            ) : null
+          }
           corner={<VideoTile stream={pipStream} muted={isRemoteSharing} label={pipLabel} isRemote={!isRemoteSharing} cameraEnabled={pipCameraEnabled} micEnabled={pipMicEnabled} connectionState={!isRemoteSharing ? peer.connectionState : undefined} />}
         >
           <div className="absolute inset-0">
@@ -244,46 +286,57 @@ export default function SessionPage() {
           <AnnotationCanvas annotations={annotations} selfId={signaling.selfId} tool={tool} onCommit={commitAnnotation} onPatch={patchAnnotation} />
         </Stage>
       </div>
-      <ControlBar micEnabled={media.micEnabled} cameraEnabled={media.cameraEnabled} annotateActive={annotateActive} onToggleMic={handleToggleMic} onToggleCamera={handleToggleCamera} onToggleAnnotate={handleToggleAnnotate} onFlipCamera={media.flipCamera} onOpenChat={() => setShowChat(true)} onOpenParticipants={() => setShowParticipants(true)} onOpenShare={() => setShowShare(true)} onEnd={endSession} participantCount={participantCount} chatUnread={chatUnread} />
-      <Sheet open={showChat} onClose={() => setShowChat(false)} title="Chat" side={typeof window !== 'undefined' && window.innerWidth < 640 ? 'bottom' : 'right'}>
-        <ChatPanel messages={chat} selfId={signaling.selfId} onSend={sendChat} onClose={() => setShowChat(false)} />
-      </Sheet>
-      <Sheet open={showParticipants} onClose={() => setShowParticipants(false)} title="Participants">
-        <div className="p-4 space-y-3">
-          <div className="flex items-center gap-2 text-xs font-semibold text-white/60">
-            <IconUsers size={14} />
-            <span>{participantCount} in session</span>
-            <span className="ml-auto rounded-full bg-white/10 px-2 py-0.5 font-mono text-[11px] text-white/80">{code}</span>
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center gap-3 rounded-2xl bg-white/[0.06] border border-white/10 px-3 py-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#1877F2] text-xs font-bold text-white">You</div>
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-semibold leading-none text-white">You</div>
-                <div className="text-xs text-white/60">{media.cameraEnabled ? 'Camera on' : 'Camera off'} • {media.micEnabled ? 'Mic on' : 'Muted'}</div>
-              </div>
-              <span className="rounded-full bg-emerald-500/15 px-2 py-1 text-[10px] font-bold text-emerald-300">You</span>
-            </div>
-            {signaling.peers.map((p) => (
-              <div key={p.id} className="flex items-center gap-3 rounded-2xl bg-white/[0.06] border border-white/10 px-3 py-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-xs font-bold text-white">{p.id.slice(0, 2).toUpperCase()}</div>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-semibold leading-none text-white">{p.id === remotePeerId ? 'Remote' : 'Participant'}</div>
-                  <div className="text-xs text-white/60">{p.id.slice(0, 8)} • joined {new Date(p.joinedAt).toLocaleTimeString()}</div>
-                </div>
-                <span className={'rounded-full px-2 py-1 text-[10px] font-bold ' + (p.id === remotePeerId && peer.remoteStream ? 'bg-emerald-500/15 text-emerald-300' : 'bg-white/10 text-white/60')}>{p.id === remotePeerId ? (peer.remoteStream ? 'Connected' : peer.connectionState) : 'In session'}</span>
-              </div>
-            ))}
-            {signaling.peers.length === 0 && (
-              <div className="rounded-2xl border border-dashed border-white/15 px-3 py-6 text-center text-sm text-white/60">No one else yet. Share the invite to bring someone in.</div>
-            )}
-          </div>
-          <div className="rounded-2xl bg-white/[0.06] border border-white/10 p-3">
-            <ShareSheet url={window.location.origin + '/s/' + code} code={code} compact />
-          </div>
-          <button type="button" onClick={toggleShare} className={'w-full rounded-xl px-3 py-3 text-sm font-bold transition ' + (sharingPeerId === signaling.selfId ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-[#1877F2] text-white hover:bg-[#0F5FCC]')}>{sharingPeerId === signaling.selfId ? 'Stop sharing' : 'Share my view'}</button>
-        </div>
-      </Sheet>
+      <ControlBar
+        micEnabled={media.micEnabled}
+        cameraEnabled={media.cameraEnabled}
+        annotateActive={annotateActive}
+        onToggleMic={handleToggleMic}
+        onToggleCamera={handleToggleCamera}
+        onToggleAnnotate={handleToggleAnnotate}
+        onFlipCamera={media.flipCamera}
+        onOpenChat={() => openPanel('chat')}
+        onOpenParticipants={() => openPanel('people')}
+        onOpenTools={() => openPanel('markup')}
+        toolsActive={panelOpen && panelTab === 'markup'}
+        onOpenShare={() => setShowShare(true)}
+        onEnd={endSession}
+        participantCount={participantCount}
+        chatUnread={chatUnread}
+      />
+      <CommandPanel
+        open={panelOpen}
+        onClose={closePanel}
+        tab={panelTab}
+        onTabChange={setPanelTab}
+        side="auto"
+        chatUnread={chatUnread}
+        peopleCount={participantCount}
+        chat={<ChatPanel messages={chat} selfId={signaling.selfId} onSend={sendChat} onClose={closePanel} />}
+        markup={
+          <AnnotationToolbar
+            variant="inline"
+            tool={tool}
+            onSelect={setTool}
+            onClear={clearAnnotations}
+            onClose={() => setTool(null)}
+          />
+        }
+        people={
+          <ParticipantsList
+            code={code}
+            participantCount={participantCount}
+            micEnabled={media.micEnabled}
+            cameraEnabled={media.cameraEnabled}
+            peers={otherPeers}
+            remotePeerId={remotePeerId}
+            remoteConnected={!!peer.remoteStream}
+            connectionState={peer.connectionState}
+            sharingSelf={sharingPeerId === signaling.selfId}
+            onToggleShareView={toggleShare}
+            invite={<ShareSheet url={window.location.origin + '/s/' + code} code={code} compact />}
+          />
+        }
+      />
       <Sheet open={showShare} onClose={() => setShowShare(false)} title="Share invite">
         <div className="p-4">
           <ShareSheet url={window.location.origin + '/s/' + code} code={code} />
