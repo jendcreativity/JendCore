@@ -6,7 +6,7 @@ JendCore is a simple real-time visual communication tool. It helps two or more p
 
 ## Deployment
 
-This app is deployed on Vercel. Visit https://jendcore.vercel.app to try it.
+This app is deployed on Vercel. Visit https://jend-core.vercel.app to try it.
 
 more people see, discuss, point at, mark, and guide one another over live
 video — without forcing them to learn a complicated conferencing suite.
