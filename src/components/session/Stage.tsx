@@ -1,4 +1,5 @@
-import { ReactNode } from 'react';
+import { ReactNode, useRef } from 'react';
+import FloatingTile from './FloatingTile';
 
 interface Props {
   children: ReactNode;
@@ -14,6 +15,11 @@ interface Props {
    * box and its coordinate area is never resized by this prop.
    */
   cornerClass?: string;
+  /**
+   * Scopes the remembered floating placement to one session (e.g. the session
+   * code). Omit to keep the placement in memory only.
+   */
+  cornerId?: string;
 }
 
 /**
@@ -21,27 +27,22 @@ interface Props {
  * Corner PiP never covers the center; controls float above with safe-area.
  *
  * The inner box (`relative flex h-full w-full`) is the coordinate space the
- * AnnotationCanvas normalises against — it must stay untouched, so all Phase 2A
- * work happens on this outer surface and on the PiP wrapper.
+ * AnnotationCanvas normalises against — its classes are untouched (only a ref is
+ * attached so the floating PiP can measure/clamp against it), so all Phase 2A
+ * work happens on this outer surface and inside the FloatingTile wrapper.
  */
-export default function Stage({ children, corner, topBar, toolbar, cornerClass }: Props) {
+export default function Stage({ children, corner, topBar, toolbar, cornerClass, cornerId }: Props) {
+  const stageBoxRef = useRef<HTMLDivElement | null>(null);
   return (
     <div className="relative flex h-full min-h-0 flex-1 items-stretch justify-center overflow-hidden bg-graphite-950">
-      <div className="relative flex h-full w-full items-center justify-center">
+      <div ref={stageBoxRef} className="relative flex h-full w-full items-center justify-center">
         {children}
         {topBar}
         {toolbar}
         {corner && (
-          <div
-            className={
-              'pointer-events-none absolute z-20 ' +
-              (cornerClass ?? 'bottom-[88px] right-3 sm:bottom-auto sm:right-4 sm:top-[64px]')
-            }
-          >
-            <div className="pointer-events-auto aspect-[4/3] w-[104px] min-[380px]:w-[112px] overflow-hidden rounded-2xl border border-white/[0.12] bg-graphite-900 shadow-jc-float sm:w-[152px] md:w-[184px]">
-              {corner}
-            </div>
-          </div>
+          <FloatingTile boundsRef={stageBoxRef} anchorClass={cornerClass} storageKey={cornerId}>
+            {corner}
+          </FloatingTile>
         )}
       </div>
     </div>

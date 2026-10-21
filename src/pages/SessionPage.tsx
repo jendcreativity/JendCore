@@ -259,6 +259,7 @@ export default function SessionPage() {
             ) : null
           }
           corner={<VideoTile stream={pipStream} muted={isRemoteSharing} label={pipLabel} isRemote={!isRemoteSharing} cameraEnabled={pipCameraEnabled} micEnabled={pipMicEnabled} connectionState={!isRemoteSharing ? peer.connectionState : undefined} />}
+          cornerId={code}
         >
           <div className="absolute inset-0">
             <VideoTile stream={mainStream} muted={!isRemoteSharing} label={mainLabel} isRemote={isRemoteSharing} cameraEnabled={mainCameraEnabled} micEnabled={mainMicEnabled} connectionState={isRemoteSharing ? peer.connectionState : undefined} />
