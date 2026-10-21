@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { IconCheck, IconCopy } from './Icon';
+import { IconCheck, IconCopy, IconShare } from './Icon';
 
 interface Props {
   url: string;
@@ -89,7 +89,7 @@ export default function ShareSheet({ url, code, compact }: Props) {
           onClick={nativeShare}
           className="flex-1 h-11 rounded-xl bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold flex items-center justify-center gap-2 transition"
         >
-          <span className="text-base">{canNativeShare ? '↗' : '⎘'}</span>
+          <IconShare size={18} />
           {shared ? 'Shared!' : canNativeShare ? 'Share…' : 'Share'}
         </button>
       </div>

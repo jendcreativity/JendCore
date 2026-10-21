@@ -88,8 +88,26 @@ export default function CommandPanel({
     tabRefs.current[nextId]?.focus();
   }
 
+  // Chat owns its own scroller (so its composer stays pinned and the message
+  // list is the only thing that scrolls — the old layout stacked three nested
+  // scrollers and only kept the composer in place by accident of height).
+  // The content-style tabs scroll here instead, so each tab has exactly one.
+  const panelBodyClass = (id: CommandTab) =>
+    id === 'chat'
+      ? 'h-full min-h-0 overflow-hidden'
+      : 'h-full min-h-0 overflow-y-auto scrollbar-thin';
+
   return (
-    <Sheet open={open} onClose={onClose} title={titles[tab]} side={side}>
+    <Sheet
+      open={open}
+      onClose={onClose}
+      title={titles[tab]}
+      side={side}
+      // The tab bar is the panel's visible heading, and exactly one scroller is
+      // decided per tab below — so the Sheet body must not scroll at all.
+      scrollBody={false}
+      showHeading={false}
+    >
       <div className="flex h-full min-h-0 flex-col">
         <div
           role="tablist"
@@ -135,7 +153,7 @@ export default function CommandPanel({
               id={panelId(t.id)}
               aria-labelledby={tabId(t.id)}
               hidden={t.id !== tab}
-              className="h-full overflow-y-auto scrollbar-thin"
+              className={panelBodyClass(t.id)}
             >
               {slots[t.id]}
             </div>

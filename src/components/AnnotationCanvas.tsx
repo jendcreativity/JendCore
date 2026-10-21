@@ -179,6 +179,7 @@ export default function AnnotationCanvas({
           if (e.pointerId === pointerId) finishShape();
         }}
         aria-label="Annotation overlay"
+        role="img"
       >
         {annotations.map(renderAnnotation)}
         {draft && renderAnnotation(draft)}
@@ -187,6 +188,7 @@ export default function AnnotationCanvas({
       {textDraft && (
         <input
           autoFocus
+          aria-label="Annotation text"
           value={textDraft.value}
           onChange={(e) =>
             setTextDraft((d) => (d ? { ...d, value: e.target.value } : d))

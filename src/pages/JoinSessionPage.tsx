@@ -1,5 +1,5 @@
 import { FormEvent, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import PrimaryButton from '../components/PrimaryButton';
 import {
   isValidSessionCode,
@@ -89,11 +89,15 @@ export default function JoinSessionPage() {
             Join session
           </PrimaryButton>
 
-          <Link to="/" className="w-full">
-            <PrimaryButton variant="ghost" fullWidth size="lg" className="h-12 text-base">
-              Back
-            </PrimaryButton>
-          </Link>
+          <PrimaryButton
+            variant="ghost"
+            fullWidth
+            size="lg"
+            onClick={() => navigate('/')}
+            className="h-12 text-base"
+          >
+            Back
+          </PrimaryButton>
         </div>
       </form>
     </main>

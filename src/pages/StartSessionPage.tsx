@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import PrimaryButton from '../components/PrimaryButton';
 import ShareSheet from '../components/ShareSheet';
 import { generateSessionCode } from '../lib/sessionCode';
@@ -65,11 +65,15 @@ export default function StartSessionPage() {
             Enter session now
           </PrimaryButton>
 
-          <Link to="/" className="w-full">
-            <PrimaryButton variant="ghost" fullWidth size="lg" className="h-12 text-base">
-              Back
-            </PrimaryButton>
-          </Link>
+          <PrimaryButton
+            variant="ghost"
+            fullWidth
+            size="lg"
+            onClick={() => navigate('/')}
+            className="h-12 text-base"
+          >
+            Back
+          </PrimaryButton>
         </div>
       </div>
     </main>

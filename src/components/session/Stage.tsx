@@ -15,11 +15,6 @@ interface Props {
    * box and its coordinate area is never resized by this prop.
    */
   cornerClass?: string;
-  /**
-   * Scopes the remembered floating placement to one session (e.g. the session
-   * code). Omit to keep the placement in memory only.
-   */
-  cornerId?: string;
 }
 
 /**
@@ -31,7 +26,7 @@ interface Props {
  * attached so the floating PiP can measure/clamp against it), so all Phase 2A
  * work happens on this outer surface and inside the FloatingTile wrapper.
  */
-export default function Stage({ children, corner, topBar, toolbar, cornerClass, cornerId }: Props) {
+export default function Stage({ children, corner, topBar, toolbar, cornerClass }: Props) {
   const stageBoxRef = useRef<HTMLDivElement | null>(null);
   return (
     <div className="relative flex h-full min-h-0 flex-1 items-stretch justify-center overflow-hidden bg-graphite-950">
@@ -40,7 +35,7 @@ export default function Stage({ children, corner, topBar, toolbar, cornerClass, 
         {topBar}
         {toolbar}
         {corner && (
-          <FloatingTile boundsRef={stageBoxRef} anchorClass={cornerClass} storageKey={cornerId}>
+          <FloatingTile boundsRef={stageBoxRef} anchorClass={cornerClass}>
             {corner}
           </FloatingTile>
         )}

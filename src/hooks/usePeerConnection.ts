@@ -14,6 +14,13 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+declare global {
+  interface Window {
+    /** Time-to-connected of the last successful peer connection, in ms. Debug aid. */
+    __jendcoreLastConnectMs?: number;
+  }
+}
+
 export type SignalKind = 'offer' | 'answer' | 'candidate' | 'bye' | 'hello' | 'sharing' | 'media-state';
 
 export interface SignalEnvelope {
@@ -59,16 +66,16 @@ function buildIceServers(): RTCIceServer[] {
     { urls: 'stun:stun1.l.google.com:19302' },
   ];
   try {
-    const env: any = (import.meta as any).env ?? {};
+    const env = import.meta.env;
     const urlsRaw: string | undefined = env.VITE_TURN_URLS;
     const username: string | undefined = env.VITE_TURN_USERNAME;
     const credential: string | undefined = env.VITE_TURN_CREDENTIAL;
     if (urlsRaw) {
       const urls = urlsRaw.split(',').map((s: string) => s.trim()).filter(Boolean);
       if (urls.length) {
-        const entry: RTCIceServer = { urls: urls.length === 1 ? urls[0] : urls } as RTCIceServer;
-        if (username) (entry as any).username = username;
-        if (credential) (entry as any).credential = credential;
+        const entry: RTCIceServer = { urls: urls.length === 1 ? urls[0] : urls };
+        if (username) entry.username = username;
+        if (credential) entry.credential = credential;
         servers.push(entry);
       }
     }
@@ -121,14 +128,15 @@ export function usePeerConnection(
 
   const close = useCallback(() => {
     if (restartTimeoutRef.current) { try { window.clearTimeout(restartTimeoutRef.current); } catch {} restartTimeoutRef.current = null; }
-    if (pcRef.current) {
-      pcRef.current.ontrack = null;
-      pcRef.current.onicecandidate = null;
-      pcRef.current.onconnectionstatechange = null;
-      (pcRef.current as any).oniceconnectionstatechange = null;
-      (pcRef.current as any).onicegatheringstatechange = null;
-      pcRef.current.onnegotiationneeded = null;
-      pcRef.current.close();
+    const pc = pcRef.current;
+    if (pc) {
+      pc.ontrack = null;
+      pc.onicecandidate = null;
+      pc.onconnectionstatechange = null;
+      pc.oniceconnectionstatechange = null;
+      pc.onicegatheringstatechange = null;
+      pc.onnegotiationneeded = null;
+      pc.close();
       pcRef.current = null;
     }
     remoteStreamRef.current = null;
@@ -153,7 +161,7 @@ export function usePeerConnection(
     if (isDebug()) console.warn(`[jendcore] scheduling ICE restart attempt ${restartAttemptsRef.current} in ${delay}ms`);
     restartTimeoutRef.current = window.setTimeout(() => {
       restartTimeoutRef.current = null; const p = pcRef.current; if (!p) return;
-      if (p.connectionState === 'failed' || p.connectionState === 'disconnected' || (p as any).iceConnectionState === 'failed') {
+      if (p.connectionState === 'failed' || p.connectionState === 'disconnected' || p.iceConnectionState === 'failed') {
         try { p.restartIce(); if (isDebug()) console.warn('[jendcore] restartIce called'); } catch (e) { if (isDebug()) console.warn('[jendcore] restartIce error', e); }
       }
     }, delay);
@@ -173,10 +181,10 @@ export function usePeerConnection(
       };
       const next = map[pc.connectionState] ?? 'connecting';
       setConnectionState(next);
-      if (isDebug()) console.debug('[jendcore] pc', pc.connectionState, 'ice', (pc as any).iceConnectionState, 'gather', (pc as any).iceGatheringState);
+      if (isDebug()) console.debug('[jendcore] pc', pc.connectionState, 'ice', pc.iceConnectionState, 'gather', pc.iceGatheringState);
       if (next === 'connected' && connectStartRef.current) {
         const ms = Date.now() - connectStartRef.current; if (isDebug()) console.debug(`[jendcore] time-to-connected ${ms}ms`);
-        try { (window as any).__jendcoreLastConnectMs = ms; } catch {}
+        try { window.__jendcoreLastConnectMs = ms; } catch {}
       }
       if (pc.connectionState === 'failed') scheduleIceRestart();
       else if (pc.connectionState === 'disconnected') {
@@ -190,12 +198,12 @@ export function usePeerConnection(
         if (restartTimeoutRef.current) { window.clearTimeout(restartTimeoutRef.current); restartTimeoutRef.current = null; }
       }
     };
-    (pc as any).oniceconnectionstatechange = () => {
-      const ice = (pc as any).iceConnectionState as string | undefined;
-      if (isDebug() && ice) console.debug('[jendcore] iceConnectionState', ice);
+    pc.oniceconnectionstatechange = () => {
+      const ice = pc.iceConnectionState;
+      if (isDebug()) console.debug('[jendcore] iceConnectionState', ice);
       if (ice === 'failed') scheduleIceRestart();
     };
-    (pc as any).onicegatheringstatechange = () => { if (isDebug()) console.debug('[jendcore] iceGatheringState', (pc as any).iceGatheringState); };
+    pc.onicegatheringstatechange = () => { if (isDebug()) console.debug('[jendcore] iceGatheringState', pc.iceGatheringState); };
 
     pc.ontrack = (event) => {
       // Prefer the coherent stream from the event (keeps audio+video in sync).
@@ -308,7 +316,7 @@ export function usePeerConnection(
     if (pc.getSenders().length > 0 && !pc.currentLocalDescription) {
       const t = window.setTimeout(() => {
         const p = pcRef.current; if (!p || p.signalingState !== 'stable') return;
-        try { p.onnegotiationneeded?.(new Event('negotiationneeded') as any); } catch {}
+        try { p.onnegotiationneeded?.(new Event('negotiationneeded')); } catch {}
       }, 0) as unknown as number;
       return () => window.clearTimeout(t);
     }

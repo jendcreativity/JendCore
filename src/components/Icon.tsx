@@ -64,6 +64,13 @@ export const IconChat = (p: IconProps) => (
   </Icon>
 );
 
+export const IconSend = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m22 2-7 20-4-9-9-4Z" />
+    <path d="M22 2 11 13" />
+  </Icon>
+);
+
 export const IconPen = (p: IconProps) => (
   <Icon {...p}>
     <path d="M12 19l7-7 3 3-7 7-3-3z" />
@@ -185,6 +192,39 @@ export const IconShare = (p: IconProps) => (
     <circle cx="18" cy="19" r="3" />
     <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
     <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+  </Icon>
+);
+
+/*
+ * Screen/view sharing — a display with an upward arrow. Deliberately distinct
+ * from IconShare above (invite link) so the two "share" actions can never be
+ * mistaken for one another.
+ */
+export const IconScreenShare = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="2.5" y="4" width="19" height="13" rx="2" />
+    <path d="M12 14V7.5" />
+    <path d="m9 10.5 3-3 3 3" />
+    <path d="M8.5 20.5h7" />
+  </Icon>
+);
+
+/* Voice-note playback glyphs. */
+export const IconPlay = (p: IconProps) => (
+  <Icon {...p}>
+    <polygon points="7 4 20 12 7 20 7 4" />
+  </Icon>
+);
+
+export const IconPause = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="6.5" y="4.5" width="3.5" height="15" rx="1" />
+    <rect x="14" y="4.5" width="3.5" height="15" rx="1" />
+  </Icon>
+);
+export const IconChevronDown = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M6 9l6 6 6-6" />
   </Icon>
 );
 

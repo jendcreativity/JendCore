@@ -13,6 +13,15 @@ interface Props {
    * Every size keeps a tap target of at least 48px.
    */
   size?: Size;
+  /**
+   * Toggle state for assistive technology only.
+   *
+   * `active` reports state *and* claims the blue "armed" accent; `pressed`
+   * reports state without stealing the accent. Mic and camera use `pressed`, so
+   * a screen reader hears on/off while the key stays neutral graphite and blue
+   * continues to mean one thing: a mode is engaged (Annotate / Markup).
+   */
+  pressed?: boolean;
   children: React.ReactNode;
 }
 
@@ -38,6 +47,7 @@ export default function ControlButton({
   disabled,
   onClick,
   size = 'auto',
+  pressed,
   children,
 }: Props) {
   const isOff = variant === 'off';
@@ -71,7 +81,7 @@ export default function ControlButton({
       title={label}
       disabled={disabled}
       onClick={onClick}
-      aria-pressed={active === undefined ? undefined : active}
+      aria-pressed={pressed ?? (active === undefined ? undefined : active)}
       className={`${base} ${cls}`}
     >
       <span className="flex items-center justify-center [&_svg]:h-[22px] [&_svg]:w-[22px] sm:[&_svg]:h-[20px] sm:[&_svg]:w-[20px]">

@@ -5,7 +5,7 @@ import type {
   ReactNode,
   RefObject,
 } from 'react';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { IconResize } from '../Icon';
 
 /**
@@ -23,11 +23,19 @@ import { IconResize } from '../Icon';
  * tool is armed), and captured moves retarget to this tile, so dragging the
  * video can never leave a mark on the canvas.
  *
- * Placement is remembered per session as fractions of the stage box (so it
- * survives rotation and window resizes) and is local to this device — as with
- * Meet's PiP, the other participant keeps their own placement.
+ * Placement is held in memory for the lifetime of the mounted session only: it
+ * is never written to storage, so a reload or a new session starts from the
+ * resting corner again. Clamping keeps any placement valid across rotation and
+ * window resizes, and — as with Meet's PiP — the other participant keeps their
+ * own placement.
  */
-const DEFAULT_ANCHOR = 'bottom-[88px] right-3 sm:bottom-auto sm:right-4 sm:top-[64px]';
+/*
+ * Mobile: the tile clears the control bar's quiet row. That row ends at 148px
+ * on narrow phones and 156px from 380px up, so 168px leaves a real gap instead
+ * of the overlap the old 88px inset produced. Desktop keeps it top-right, where
+ * the bar is nowhere near it.
+ */
+const DEFAULT_ANCHOR = 'bottom-[168px] right-3 sm:bottom-auto sm:right-4 sm:top-[64px]';
 const DEFAULT_SIZE = 'w-[104px] min-[380px]:w-[112px] sm:w-[152px] md:w-[184px]';
 
 /** Resize limits, in px of tile width. */
@@ -41,15 +49,8 @@ const TOP_INSET = 64;
 const ASPECT = 0.75;
 const MOVE_STEP = 16;
 const SIZE_STEP = 16;
-const STORAGE_PREFIX = 'jendcore:pip:';
 
 interface Placement {
-  x: number;
-  y: number;
-  w: number;
-}
-
-interface SavedFractions {
   x: number;
   y: number;
   w: number;
@@ -82,8 +83,6 @@ interface Props {
   boundsRef: RefObject<HTMLDivElement>;
   /** Resting anchor override; defaults to the original corner placement. */
   anchorClass?: string;
-  /** Scopes the remembered placement to one session. Omit for memory-only. */
-  storageKey?: string;
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -116,68 +115,14 @@ function confine(p: Placement, stage: StageMetrics): Placement {
   };
 }
 
-function toFractions(p: Placement, stage: StageMetrics): SavedFractions {
-  return { x: p.x / stage.width, y: p.y / stage.height, w: p.w / stage.width };
-}
-
-/** Reads a remembered placement, discarding anything malformed or out of range. */
-function loadSaved(key: string | null): SavedFractions | null {
-  if (!key) return null;
-  try {
-    const raw = window.localStorage.getItem(key);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<SavedFractions> | null;
-    const x = parsed?.x;
-    const y = parsed?.y;
-    const w = parsed?.w;
-    if (typeof x !== 'number' || typeof y !== 'number' || typeof w !== 'number') return null;
-    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(w)) return null;
-    if (x < 0 || x > 1 || y < 0 || y > 1 || w <= 0 || w > 1) return null;
-    return { x, y, w };
-  } catch {
-    return null;
-  }
-}
-
-/** Persists a placement (fractions) or clears it when passed null. */
-function saveSaved(key: string | null, value: SavedFractions | null) {
-  if (!key) return;
-  try {
-    if (value) window.localStorage.setItem(key, JSON.stringify(value));
-    else window.localStorage.removeItem(key);
-  } catch {
-    /* storage unavailable (private mode, quota) — placement simply stays in memory */
-  }
-}
-
-export default function FloatingTile({ children, boundsRef, anchorClass, storageKey }: Props) {
+export default function FloatingTile({ children, boundsRef, anchorClass }: Props) {
   const tileRef = useRef<HTMLDivElement | null>(null);
   const gestureRef = useRef<Gesture | null>(null);
-  // Latest placement, so the end-of-gesture save never depends on render timing.
+  // Latest placement, so clamping and resize math never depend on render timing.
   const liveRef = useRef<Placement | null>(null);
   // null = resting CSS placement (the original corner anchor); otherwise px in the stage box.
   const [placement, setPlacement] = useState<Placement | null>(null);
   const [mode, setMode] = useState<'drag' | 'resize' | null>(null);
-
-  const storageId = storageKey ? STORAGE_PREFIX + storageKey : null;
-  const [saved] = useState(() => loadSaved(storageId));
-
-  // Restore once, before paint, so the remembered spot never flickers.
-  useLayoutEffect(() => {
-    if (!saved) return;
-    const stage = stageMetrics(boundsRef.current);
-    if (!stage) return;
-    const restored = confine(
-      {
-        x: saved.x * stage.width,
-        y: saved.y * stage.height,
-        w: saved.w * stage.width,
-      },
-      stage,
-    );
-    liveRef.current = restored;
-    setPlacement(restored);
-  }, [saved, boundsRef]);
 
   // Rotation / window resize must never strand the tile outside the stage box.
   // The resting CSS placement is deliberately left untouched.
@@ -268,14 +213,11 @@ export default function FloatingTile({ children, boundsRef, anchorClass, storage
         /* ignore */
       }
     }
-    const stage = stageMetrics(boundsRef.current);
-    if (stage && liveRef.current) saveSaved(storageId, toFractions(liveRef.current, stage));
   }
 
   function resetPlacement() {
     liveRef.current = null;
     setPlacement(null);
-    saveSaved(storageId, null);
   }
 
   function onKeyDown(e: ReactKeyboardEvent<HTMLDivElement>) {
@@ -324,7 +266,6 @@ export default function FloatingTile({ children, boundsRef, anchorClass, storage
     const safe = confine(next, stage);
     liveRef.current = safe;
     setPlacement(safe);
-    saveSaved(storageId, toFractions(safe, stage));
   }
 
   const free = placement !== null;

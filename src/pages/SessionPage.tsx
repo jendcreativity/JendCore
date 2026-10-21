@@ -16,13 +16,25 @@ import Sheet from '../components/session/Sheet';
 import CommandPanel, { CommandTab } from '../components/session/CommandPanel';
 import ParticipantsList from '../components/session/ParticipantsList';
 import { Annotation, AnnotationTool } from '../lib/annotations';
-import { ChatMessage, createMessage } from '../lib/chat';
+import { ChatMessage, VOICE_B64_MAX, VoiceNote, createMessage, createVoiceMessage, parseIncomingMessage } from '../lib/chat';
 
 export default function SessionPage() {
   const params = useParams<{ sessionId: string }>();
-  const navigate = useNavigate();
   const code = params.sessionId ?? '';
   if (!isValidSessionCode(code)) return <Navigate to="/join" replace />;
+  return <SessionRoom code={code} />;
+}
+
+/**
+ * The live session room.
+ *
+ * Deliberately a separate component from `SessionPage`: a component that
+ * returns early *ahead of* its hooks changes hook order between renders
+ * (invalid code -> valid code), which React rejects. Keeping the redirect in
+ * the wrapper means every hook below runs unconditionally on every render.
+ */
+function SessionRoom({ code }: { code: string }) {
+  const navigate = useNavigate();
   const media = useLocalMedia(true);
   const signaling = useSupabaseSignaling(code);
   const [remotePeerId, setRemotePeerId] = useState<string | null>(null);
@@ -89,7 +101,28 @@ export default function SessionPage() {
 
   const sendChat = useCallback(
     (text: string) => {
-      const msg = createMessage(signaling.selfId, text);
+      const msg = createMessage(signaling.selfId, text, signaling.selfName);
+      setChat((prev) => [...prev, msg]);
+      signaling.send({
+        from: signaling.selfId,
+        to: '*',
+        kind: 'hello',
+        payload: { kind: 'chat', message: msg },
+      });
+    },
+    [signaling],
+  );
+
+  // Voice notes ride the same chat envelope. The audio is an in-memory base64
+  // blob: it is never uploaded anywhere, and it disappears with the session.
+  const sendVoice = useCallback(
+    (note: VoiceNote) => {
+      // Bound before transport: the receipt path applies the same ceiling, so a
+      // note that could not be relayed is never added to the local transcript
+      // either. The recorder's 30 s / 24 kbps cap makes this unreachable in
+      // practice — it is a backstop, not a user-facing limit.
+      if (!note?.data || note.data.length > VOICE_B64_MAX) return;
+      const msg = createVoiceMessage(signaling.selfId, note, signaling.selfName);
       setChat((prev) => [...prev, msg]);
       signaling.send({
         from: signaling.selfId,
@@ -143,8 +176,12 @@ export default function SessionPage() {
     const unsub = signaling.subscribe((msg: SignalEnvelope) => {
       const payload = msg.payload as unknown as { kind?: string; message?: ChatMessage; annotation?: Annotation; id?: string; patch?: Partial<Annotation> };
       if (payload?.kind === 'chat' && payload.message) {
-        const incoming = payload.message as ChatMessage;
-        setChat((prev) => (prev.some((m) => m.id === incoming.id) ? prev : [...prev, incoming]));
+        // Validated, never trusted: a malformed or oversized payload is dropped
+        // instead of entering the transcript.
+        const incoming = parseIncomingMessage(payload.message);
+        if (incoming) {
+          setChat((prev) => (prev.some((m) => m.id === incoming.id) ? prev : [...prev, incoming]));
+        }
       } else if (payload?.kind === 'annotation-add' && payload.annotation) {
         const incoming = payload.annotation as Annotation;
         setAnnotations((prev) => (prev.some((a) => a.id === incoming.id) ? prev : [...prev, incoming]));
@@ -191,6 +228,23 @@ export default function SessionPage() {
           ? 'Connection failed'
           : 'Waiting for peer…';
   const isRemoteSharing = sharingPeerId === remotePeerId && !!remotePeerId;
+
+  /**
+   * Display name for a peer id. Falls back to role words so the UI never shows
+   * a blank or an internal id: "You" for this user, "Remote" for a peer who has
+   * not entered a name yet.
+   */
+  const nameOf = useCallback(
+    (id: string | null): string => {
+      if (!id) return '';
+      if (id === signaling.selfId) return signaling.selfName.trim() || 'You';
+      const peer = signaling.peers.find((p) => p.id === id);
+      return peer?.name?.trim() || 'Remote';
+    },
+    [signaling.selfId, signaling.selfName, signaling.peers],
+  );
+  /** Whose screen is on the main stage, by name. */
+  const sharingName = nameOf(sharingPeerId);
   const mainStream = isRemoteSharing ? peer.remoteStream : media.stream;
   const mainLabel = isRemoteSharing ? 'Remote' : 'You';
   const mainCameraEnabled = isRemoteSharing ? remoteMediaState.cameraEnabled : media.cameraEnabled;
@@ -259,23 +313,26 @@ export default function SessionPage() {
             ) : null
           }
           corner={<VideoTile stream={pipStream} muted={isRemoteSharing} label={pipLabel} isRemote={!isRemoteSharing} cameraEnabled={pipCameraEnabled} micEnabled={pipMicEnabled} connectionState={!isRemoteSharing ? peer.connectionState : undefined} />}
-          cornerId={code}
         >
           <div className="absolute inset-0">
             <VideoTile stream={mainStream} muted={!isRemoteSharing} label={mainLabel} isRemote={isRemoteSharing} cameraEnabled={mainCameraEnabled} micEnabled={mainMicEnabled} connectionState={isRemoteSharing ? peer.connectionState : undefined} />
           </div>
           {sharingPeerId && (
             <div className="pointer-events-none absolute left-1/2 top-[56px] z-10 hidden -translate-x-1/2 sm:flex">
-              <span className="rounded-full bg-[#1877F2] px-3 py-1 text-xs font-bold text-white shadow-lg">{sharingPeerId === signaling.selfId ? 'You are sharing' : 'Remote is sharing'}</span>
+              <span className="rounded-full bg-accent-500 px-3 py-1 text-xs font-bold text-white shadow-lg">
+                {sharingPeerId === signaling.selfId ? 'You are sharing' : `${sharingName} is sharing`}
+              </span>
             </div>
           )}
           {sharingPeerId && (
             <div className="pointer-events-none absolute left-3 top-[92px] z-10 sm:hidden">
-              <span className="rounded-full bg-[#1877F2] px-2.5 py-1 text-[11px] font-bold text-white shadow">{sharingPeerId === signaling.selfId ? 'You sharing' : 'Remote sharing'}</span>
+              <span className="rounded-full bg-accent-500 px-2.5 py-1 text-[11px] font-bold text-white shadow">
+                {sharingPeerId === signaling.selfId ? 'You sharing' : `${sharingName} sharing`}
+              </span>
             </div>
           )}
           {!peer.remoteStream && peer.connectionState !== 'connecting' && !isRemoteSharing && !signaling.error && (
-            <div className="pointer-events-none absolute inset-x-3 bottom-[128px] z-10 flex justify-center sm:bottom-[118px]">
+            <div className="pointer-events-none absolute inset-x-3 bottom-[260px] z-10 flex justify-center sm:bottom-[118px]">
               <div className="rounded-2xl bg-black/55 px-4 py-3 text-center backdrop-blur border border-white/10">
                 <div className="text-sm font-semibold text-white">Waiting for others to join</div>
                 <div className="mt-1 text-xs text-white/70">Share code <span className="font-mono font-bold text-white">{code}</span> or send the invite link</div>
@@ -287,6 +344,9 @@ export default function SessionPage() {
           <AnnotationCanvas annotations={annotations} selfId={signaling.selfId} tool={tool} onCommit={commitAnnotation} onPatch={patchAnnotation} />
         </Stage>
       </div>
+      {/* Media keys go inert only while tracks are being replaced: `busy` is
+          also true during the initial permission prompt, where pre-setting
+          mic/camera state must stay possible — hence the stream gate. */}
       <ControlBar
         micEnabled={media.micEnabled}
         cameraEnabled={media.cameraEnabled}
@@ -295,11 +355,15 @@ export default function SessionPage() {
         onToggleCamera={handleToggleCamera}
         onToggleAnnotate={handleToggleAnnotate}
         onFlipCamera={media.flipCamera}
+        busy={media.busy && !!media.stream}
+        canFlip={media.canFlip}
         onOpenChat={() => openPanel('chat')}
         onOpenParticipants={() => openPanel('people')}
         onOpenTools={() => openPanel('markup')}
         toolsActive={panelOpen && panelTab === 'markup'}
         onOpenShare={() => setShowShare(true)}
+        sharingSelf={sharingPeerId === signaling.selfId}
+        onToggleShareView={toggleShare}
         onEnd={endSession}
         participantCount={participantCount}
         chatUnread={chatUnread}
@@ -312,7 +376,18 @@ export default function SessionPage() {
         side="auto"
         chatUnread={chatUnread}
         peopleCount={participantCount}
-        chat={<ChatPanel messages={chat} selfId={signaling.selfId} onSend={sendChat} onClose={closePanel} />}
+        chat={
+          <ChatPanel
+            messages={chat}
+            selfId={signaling.selfId}
+            selfName={signaling.selfName}
+            onSend={sendChat}
+            onSendVoice={sendVoice}
+            // Reusing the session's own mic track stops a voice note from
+            // fighting the call for the device.
+            voiceTrack={media.stream?.getAudioTracks()[0] ?? null}
+          />
+        }
         markup={
           <AnnotationToolbar
             variant="inline"
@@ -332,6 +407,10 @@ export default function SessionPage() {
             remotePeerId={remotePeerId}
             remoteConnected={!!peer.remoteStream}
             connectionState={peer.connectionState}
+            selfId={signaling.selfId}
+            selfName={signaling.selfName}
+            onNameChange={signaling.setName}
+            sharingPeerId={sharingPeerId}
             sharingSelf={sharingPeerId === signaling.selfId}
             onToggleShareView={toggleShare}
             invite={<ShareSheet url={window.location.origin + '/s/' + code} code={code} compact />}

@@ -24,6 +24,12 @@ export interface LocalMediaState {
   facing: CameraFacing;
   permissionError: string | null;
   busy: boolean;
+  /**
+   * False only when the device is known to expose a single camera. Starts true
+   * and fails open: desktop browsers and the pre-permission state keep camera
+   * flipping available (Chrome reports one camera until permission is granted).
+   */
+  canFlip: boolean;
 }
 
 export interface LocalMediaControls extends LocalMediaState {
@@ -54,7 +60,28 @@ export function useLocalMedia(autoStart = true): LocalMediaControls {
   const [facing, setFacing] = useState<CameraFacing>('user');
   const [permissionError, setPermissionError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [canFlip, setCanFlip] = useState(true);
   const streamRef = useRef<MediaStream | null>(null);
+  /** Mirror of `canFlip` so callbacks never close over a stale value. */
+  const canFlipRef = useRef(true);
+
+  /**
+   * Reads the camera count. Only meaningful AFTER permission is granted:
+   * browsers report a single placeholder device until then, so calling this
+   * early would wrongly disable flipping. Any failure leaves flipping enabled.
+   */
+  const refreshCameraCount = useCallback(async () => {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const cameras = devices.filter((d: MediaDeviceInfo) => d.kind === 'videoinput');
+      if (cameras.length === 0) return; // unknown — keep the previous value
+      const next = cameras.length >= 2;
+      canFlipRef.current = next;
+      setCanFlip(next);
+    } catch {
+      // enumerateDevices can throw on an insecure context — fail open.
+    }
+  }, []);
 
   const stop = useCallback(() => {
     if (streamRef.current) {
@@ -94,6 +121,8 @@ export function useLocalMedia(autoStart = true): LocalMediaControls {
           (t: MediaStreamTrack) => (t.enabled = cameraEnabledRef.current),
         );
         setFacing(preferredFacing);
+        // Permission is granted from here on, so the camera count is trustworthy.
+        void refreshCameraCount();
       } catch (err) {
         const e = err as DOMException;
         if (
@@ -130,7 +159,7 @@ export function useLocalMedia(autoStart = true): LocalMediaControls {
         setBusy(false);
       }
     },
-    [],
+    [refreshCameraCount],
   );
 
   // Live refs so callbacks always see the latest toggle state.
@@ -168,6 +197,9 @@ export function useLocalMedia(autoStart = true): LocalMediaControls {
   }, []);
 
   const flipCamera = useCallback(async () => {
+    // A single-camera device cannot flip. The control is disabled in that case;
+    // this guard keeps a programmatic call from raising a false error banner.
+    if (!canFlipRef.current) return;
     const target: CameraFacing = facing === 'user' ? 'environment' : 'user';
     setBusy(true);
     setPermissionError(null);
@@ -256,8 +288,11 @@ export function useLocalMedia(autoStart = true): LocalMediaControls {
       if (!newTrack) {
         try {
           const devs = await navigator.mediaDevices.enumerateDevices();
-          if (devs.filter((d: MediaDeviceInfo) => d.kind === 'videoinput').length === 1) {
-            setPermissionError('Only one camera was found on this device.');
+          if (devs.filter((d: MediaDeviceInfo) => d.kind === 'videoinput').length <= 1) {
+            // One camera is not an error — flipping is simply impossible.
+            // Disable the control instead of showing a permission alarm.
+            canFlipRef.current = false;
+            setCanFlip(false);
             return;
           }
         } catch {}
@@ -287,8 +322,6 @@ export function useLocalMedia(autoStart = true): LocalMediaControls {
         setPermissionError('This device cannot switch to the requested camera.');
       } else if (err?.name === 'AbortError') {
         setPermissionError('Camera switch was interrupted. Please try again.');
-      } else if ((err as unknown as Error)?.message?.includes('Only one camera')) {
-        // already handled above
       } else {
         setPermissionError('Could not switch camera. Please try again.');
       }
@@ -302,6 +335,7 @@ export function useLocalMedia(autoStart = true): LocalMediaControls {
     facing,
     permissionError,
     busy,
+    canFlip,
     toggleMic,
     toggleCamera,
     flipCamera,

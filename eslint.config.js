@@ -5,7 +5,9 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
 
 export default [
-  { ignores: ['dist'] },
+  // `vite.config.verify.ts` is a local, git-ignored verification config (see
+  // .gitignore) — it is not part of the build and is not linted.
+  { ignores: ['dist', 'vite.config.verify.ts'] },
   {
     files: ['**/*.{js,jsx,ts,tsx}'],
     languageOptions: {
@@ -22,6 +24,11 @@ export default [
     rules: {
       ...js.configs.recommended.rules,
       ...reactHooks.configs.recommended.rules,
+      // Teardown and best-effort media paths deliberately `catch {}` and carry
+      // on — stopping tracks, clearing timers, releasing a camera lock. An
+      // empty catch is the intended shape there, so only empty blocks
+      // elsewhere are reported.
+      'no-empty': ['error', { allowEmptyCatch: true }],
       'react-refresh/only-export-components': [
         'warn',
         { allowConstantExport: true },
@@ -29,4 +36,18 @@ export default [
     },
   },
   ...tseslint.configs.recommended,
+  {
+    rules: {
+      // Underscore-prefixed identifiers are intentionally unused — e.g. the
+      // deprecated `facing` prop retained on VideoTile for API compatibility.
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+        },
+      ],
+    },
+  },
 ];

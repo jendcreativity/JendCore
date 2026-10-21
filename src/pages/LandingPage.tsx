@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import PrimaryButton from '../components/PrimaryButton';
 import { IconLogo, IconVideo } from '../components/Icon';
 
@@ -13,6 +13,7 @@ import { IconLogo, IconVideo } from '../components/Icon';
  * uncluttered so a first-time user can act immediately.
  */
 export default function LandingPage() {
+  const navigate = useNavigate();
   return (
     <main className="min-h-full flex flex-col items-center justify-center px-4 py-8 sm:px-6 sm:py-12 safe-top safe-bottom">
       <div className="w-full max-w-lg mx-auto text-center">
@@ -39,18 +40,25 @@ export default function LandingPage() {
 
         {/* Actions */}
         <div className="mt-12 sm:mt-14 flex flex-col gap-4 sm:gap-3">
-          <Link to="/start" className="w-full">
-            <PrimaryButton size="lg" fullWidth className="text-lg sm:text-base h-16 sm:h-14">
-              <IconVideo size={24} />
-              <span className="font-bold">Start a session</span>
-            </PrimaryButton>
-          </Link>
+          <PrimaryButton
+            size="lg"
+            fullWidth
+            onClick={() => navigate('/start')}
+            className="text-lg sm:text-base h-16 sm:h-14"
+          >
+            <IconVideo size={24} />
+            <span className="font-bold">Start a session</span>
+          </PrimaryButton>
 
-          <Link to="/join" className="w-full">
-            <PrimaryButton size="lg" variant="secondary" fullWidth className="text-lg sm:text-base h-16 sm:h-14">
-              <span className="font-semibold">Join a session</span>
-            </PrimaryButton>
-          </Link>
+          <PrimaryButton
+            size="lg"
+            variant="secondary"
+            fullWidth
+            onClick={() => navigate('/join')}
+            className="text-lg sm:text-base h-16 sm:h-14"
+          >
+            <span className="font-semibold">Join a session</span>
+          </PrimaryButton>
         </div>
 
         {/* Footer note */}
