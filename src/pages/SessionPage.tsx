@@ -4,6 +4,7 @@ import { isValidSessionCode } from '../lib/sessionCode';
 import { useLocalMedia } from '../hooks/useLocalMedia';
 import { useSupabaseSignaling } from '../hooks/useSupabaseSignaling';
 import { SignalEnvelope, usePeerConnection } from '../hooks/usePeerConnection';
+import { useSharedDocument } from '../hooks/useSharedDocument';
 import AnnotationCanvas from '../components/AnnotationCanvas';
 import ChatPanel from '../components/ChatPanel';
 import ShareSheet from '../components/ShareSheet';
@@ -16,7 +17,10 @@ import Sheet from '../components/session/Sheet';
 import CommandPanel, { CommandTab } from '../components/session/CommandPanel';
 import ParticipantsList from '../components/session/ParticipantsList';
 import { Annotation, AnnotationTool } from '../lib/annotations';
+import { DOC_COLOR } from '../lib/docAnnotations';
 import { ChatMessage, VOICE_B64_MAX, VoiceNote, createMessage, createVoiceMessage, parseIncomingMessage } from '../lib/chat';
+import DocWorkspace from '../components/workspace/DocWorkspace';
+import type { DocPointerTool } from '../components/workspace/DocAnnotationLayer';
 
 export default function SessionPage() {
   const params = useParams<{ sessionId: string }>();
@@ -53,6 +57,13 @@ function SessionRoom({ code }: { code: string }) {
   }, [signaling, remotePeerId]);
   const initiator = useMemo(() => remotePeerId ? signaling.selfId < remotePeerId : false, [signaling.selfId, remotePeerId]);
   const peer = usePeerConnection({ selfId: signaling.selfId, remoteId: remotePeerId ?? '__no_remote__', initiator, send: signaling.send, subscribe: signaling.subscribe, localStream: media.stream });
+  // The shared-document feature: transport (data channel), meta + ops (broadcast).
+  const doc = useSharedDocument(
+    signaling.selfId,
+    { send: signaling.send, subscribe: signaling.subscribe },
+    peer.dataChannel,
+    { remoteId: remotePeerId, connected: !!peer.remoteStream },
+  );
   const [sharingPeerId, setSharingPeerId] = useState<string | null>(null);
   const [remoteMediaState, setRemoteMediaState] = useState({ micEnabled: true, cameraEnabled: true });
   const toggleShare = useCallback(() => {
@@ -89,6 +100,12 @@ function SessionRoom({ code }: { code: string }) {
   const [chat, setChat] = useState<ChatMessage[]>([]);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [tool, setTool] = useState<AnnotationTool | null>(null);
+  // Shared-document workspace: overlay visibility, the armed annotation tool
+  // and the current ink colour. Screen annotations and document annotations are
+  // deliberately independent modes with their own state.
+  const [docOpen, setDocOpen] = useState(false);
+  const [docTool, setDocTool] = useState<DocPointerTool | null>(null);
+  const [docColor, setDocColor] = useState(DOC_COLOR);
   // One command panel owns Chat / Markup / People; the invite sheet stays its own.
   const [panelOpen, setPanelOpen] = useState(false);
   const [panelTab, setPanelTab] = useState<CommandTab>('chat');
@@ -97,6 +114,16 @@ function SessionRoom({ code }: { code: string }) {
   // Derived chat-open state: the single source for both unread effects below,
   // exactly replacing the old `showChat` boolean.
   const chatOpen = panelOpen && panelTab === 'chat';
+
+  // A document appearing or leaving drives the workspace: sharing one opens it
+  // for everyone, closing one puts the stage back on video and drops the tool.
+  useEffect(() => {
+    if (doc.meta) setDocOpen(true);
+    else {
+      setDocOpen(false);
+      setDocTool(null);
+    }
+  }, [doc.meta]);
 
 
   const sendChat = useCallback(
@@ -342,6 +369,16 @@ function SessionRoom({ code }: { code: string }) {
           )}
 
           <AnnotationCanvas annotations={annotations} selfId={signaling.selfId} tool={tool} onCommit={commitAnnotation} onPatch={patchAnnotation} />
+          <DocWorkspace
+            doc={doc}
+            selfId={signaling.selfId}
+            open={docOpen}
+            tool={docTool}
+            color={docColor}
+            onToolChange={setDocTool}
+            onColorChange={setDocColor}
+            onClose={() => setDocOpen(false)}
+          />
         </Stage>
       </div>
       {/* Media keys go inert only while tracks are being replaced: `busy` is
@@ -361,6 +398,8 @@ function SessionRoom({ code }: { code: string }) {
         onOpenParticipants={() => openPanel('people')}
         onOpenTools={() => openPanel('markup')}
         toolsActive={panelOpen && panelTab === 'markup'}
+        onOpenDocument={() => setDocOpen((o) => !o)}
+        documentActive={docOpen && !!doc.meta}
         onOpenShare={() => setShowShare(true)}
         sharingSelf={sharingPeerId === signaling.selfId}
         onToggleShareView={toggleShare}

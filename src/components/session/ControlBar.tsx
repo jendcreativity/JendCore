@@ -12,6 +12,7 @@ import {
   IconUsers,
   IconShare,
   IconVideoOff,
+  IconFileText,
 } from '../Icon';
 
 interface Props {
@@ -39,6 +40,10 @@ interface Props {
   onOpenTools?: () => void;
   /** Highlights the Markup key while its tab is open. */
   toolsActive?: boolean;
+  /** Opens / closes the shared-document workspace. */
+  onOpenDocument?: () => void;
+  /** Highlights the Document key while a document view is up. */
+  documentActive?: boolean;
   /**
    * True while media work is in flight (camera flip, re-acquire). Media keys
    * are held inert so a double tap cannot queue contradictory changes. The
@@ -145,6 +150,22 @@ export default function ControlBar(p: Props) {
           <IconShare size={16} />
           <span className="hidden sm:inline">Share invite</span>
         </button>
+        {/* Shared document — its own mode, so the key wears the file glyph and
+            arms blue only while the document workspace is showing a document. */}
+        {p.onOpenDocument ? (
+          <button
+            type="button"
+            onClick={p.onOpenDocument}
+            aria-pressed={p.documentActive}
+            aria-label="Shared document"
+            title="Shared document"
+            className={keyClass(p.documentActive ? 'armed' : 'idle')}
+          >
+            <IconFileText size={16} />
+            <span className="hidden sm:inline">Document</span>
+          </button>
+        ) : null}
+
         {/* Share my view — broadcasts this screen to everyone. Its own glyph and
             a real aria-pressed toggle, so the state is announced, not implied. */}
         <button

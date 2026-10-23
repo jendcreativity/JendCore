@@ -396,3 +396,35 @@ export const IconResize = (p: IconProps) => (
     <line x1="3" y1="21" x2="10" y2="14" />
   </Icon>
 );
+
+export const IconUndo = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M9 14 4 9l5-5" />
+    <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
+  </Icon>
+);
+
+export const IconRedo = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m15 14 5-5-5-5" />
+    <path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13" />
+  </Icon>
+);
+
+export const IconEraser = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m7 21-4.3-4.3a1 1 0 0 1 0-1.4l9.6-9.6a1 1 0 0 1 1.4 0l5.6 5.6a1 1 0 0 1 0 1.4L13 21" />
+    <path d="M22 21H7" />
+    <path d="m5 11 9 9" />
+  </Icon>
+);
+
+export const IconFit = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M8 3H5a2 2 0 0 0-2 2v3" />
+    <path d="M21 8V5a2 2 0 0 0-2-2h-3" />
+    <path d="M3 16v3a2 2 0 0 0 2 2h3" />
+    <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
+  </Icon>
+);
+

@@ -10,9 +10,12 @@
  *   VITE_TURN_USERNAME / VITE_TURN_CREDENTIAL (if set, appended).
  * - Early ICE candidate buffering, polite glare fix, ICE restart.
  * - replaceTrack for camera flip, coherent remote MediaStream.
+ * - One application data channel (`jendcore:doc`) for shared-document bytes:
+ *   additive, initiator-created, ordered, with backpressure — the media path is
+ *   untouched by it.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 declare global {
   interface Window {
@@ -21,7 +24,21 @@ declare global {
   }
 }
 
-export type SignalKind = 'offer' | 'answer' | 'candidate' | 'bye' | 'hello' | 'sharing' | 'media-state';
+export type SignalKind =
+  | 'offer'
+  | 'answer'
+  | 'candidate'
+  | 'bye'
+  | 'hello'
+  | 'sharing'
+  | 'media-state'
+  /**
+   * Application data that is not part of session signalling: shared-document
+   * metadata, annotations, page changes and lifecycle events. It rides the same
+   * broadcast channel with the same envelope shape, so the transport needs no
+   * new capability for it. Document *bytes* deliberately do not travel here.
+   */
+  | 'doc';
 
 export interface SignalEnvelope {
   /** Which peer sent this message. */
@@ -58,7 +75,37 @@ export interface UsePeerConnectionOptions {
 export interface PeerConnectionControls {
   connectionState: ConnectionState;
   remoteStream: MediaStream | null;
+  /**
+   * Direct peer-to-peer byte channel for shared-document transfer.
+   *
+   * Additive and independent of the media path: it is created once per peer
+   * connection (deterministically, by the initiator), carries no media, and its
+   * failure never changes `connectionState`. `send` resolves only once the frame
+   * is handed to the channel (waiting for the buffer to drain when the link is
+   * busy), which is what makes transfer progress honest rather than optimistic.
+   */
+  dataChannel: DataChannelControls;
 }
+
+export type DataChannelState = 'connecting' | 'open' | 'closing' | 'closed';
+
+export interface DataChannelControls {
+  readyState: DataChannelState;
+  /** Queues one frame. Resolves `false` if the channel is closed or wedged. */
+  send: (payload: string | ArrayBuffer) => Promise<boolean>;
+  /** Receives every inbound frame; returns an unsubscribe function. */
+  subscribe: (handler: (payload: string | ArrayBuffer) => void) => () => void;
+  /** Bytes queued but not yet flushed by the browser. */
+  bufferedAmount: () => number;
+}
+
+/** Label of the application data channel (one per peer connection). */
+const DATA_CHANNEL_LABEL = 'jendcore:doc';
+/** Only queue more once the browser has drained below this. */
+const DATA_HIGH_WATER = 512 * 1024;
+const DATA_LOW_WATER = 128 * 1024;
+/** A wedged channel must not hang a transfer forever. */
+const DATA_SEND_TIMEOUT_MS = 20_000;
 
 function buildIceServers(): RTCIceServer[] {
   const servers: RTCIceServer[] = [
@@ -112,11 +159,145 @@ export function usePeerConnection(
     useState<ConnectionState>('idle');
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
 
+  /* ── application data channel (shared documents) ── */
+
+  const dcRef = useRef<RTCDataChannel | null>(null);
+  const dcListenersRef = useRef<Set<(payload: string | ArrayBuffer) => void>>(new Set());
+  const [dataChannelState, setDataChannelState] = useState<DataChannelState>('closed');
+
+  /** Detaches and closes the data channel, clearing every handler with it. */
+  const detachDataChannel = useCallback(() => {
+    const dc = dcRef.current;
+    dcRef.current = null;
+    if (dc) {
+      dc.onopen = null;
+      dc.onclose = null;
+      dc.onerror = null;
+      dc.onmessage = null;
+      dc.onbufferedamountlow = null;
+      try {
+        dc.close();
+      } catch {
+        /* already closed */
+      }
+    }
+    setDataChannelState('closed');
+  }, []);
+
+  /** Wires one channel — created here, or received from the other participant. */
+  const bindDataChannel = useCallback((dc: RTCDataChannel) => {
+    dcRef.current = dc;
+    dc.binaryType = 'arraybuffer';
+    dc.bufferedAmountLowThreshold = DATA_LOW_WATER;
+    setDataChannelState(dc.readyState === 'open' ? 'open' : 'connecting');
+    dc.onopen = () => {
+      if (dcRef.current === dc) setDataChannelState('open');
+    };
+    dc.onclose = () => {
+      if (dcRef.current === dc) {
+        dcRef.current = null;
+        setDataChannelState('closed');
+      }
+    };
+    dc.onerror = () => {
+      // A data-channel error never changes the media `connectionState`: the call
+      // keeps working even if document transfer is unavailable.
+      if (isDebug()) console.warn('[jendcore] data channel error');
+    };
+    dc.onmessage = (event: MessageEvent) => {
+      const data = event.data as unknown;
+      const payload = typeof data === 'string' ? data : data instanceof ArrayBuffer ? data : null;
+      if (payload === null) return;
+      dcListenersRef.current.forEach((cb) => {
+        try {
+          cb(payload);
+        } catch (err) {
+          if (isDebug()) console.warn('[jendcore] data listener failed', err);
+        }
+      });
+    };
+  }, []);
+
+  /**
+   * Queues one frame, resolving once the browser has accepted it.
+   *
+   * Backpressure: while the channel is above the high-water mark the send waits
+   * for `bufferedamountlow`, so a large document cannot balloon browser memory.
+   * The transfer loop awaits each part, so only one waiter exists per channel.
+   */
+  const sendData = useCallback((payload: string | ArrayBuffer): Promise<boolean> => {
+    const dc = dcRef.current;
+    if (!dc) return Promise.resolve(false);
+    return new Promise<boolean>((resolve) => {
+      let settled = false;
+      const settle = (ok: boolean) => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timer);
+        resolve(ok);
+      };
+      const timer = window.setTimeout(() => settle(false), DATA_SEND_TIMEOUT_MS);
+      const attempt = () => {
+        if (settled) return;
+        const channel = dcRef.current;
+        if (!channel || channel !== dc) {
+          settle(false);
+          return;
+        }
+        if (channel.readyState === 'connecting') {
+          window.setTimeout(attempt, 120);
+          return;
+        }
+        if (channel.readyState !== 'open') {
+          settle(false);
+          return;
+        }
+        if (channel.bufferedAmount > DATA_HIGH_WATER) {
+          channel.onbufferedamountlow = () => {
+            channel.onbufferedamountlow = null;
+            attempt();
+          };
+          return;
+        }
+        try {
+          // `RTCDataChannel.send` is overloaded per payload type, so the union
+          // is narrowed here instead of being passed through (which no single
+          // overload accepts).
+          if (typeof payload === 'string') channel.send(payload);
+          else channel.send(payload);
+          settle(true);
+        } catch {
+          settle(false);
+        }
+      };
+      attempt();
+    });
+  }, []);
+
+  const subscribeData = useCallback((handler: (payload: string | ArrayBuffer) => void) => {
+    dcListenersRef.current.add(handler);
+    return () => {
+      dcListenersRef.current.delete(handler);
+    };
+  }, []);
+
+  const dataChannel = useMemo<DataChannelControls>(
+    () => ({
+      readyState: dataChannelState,
+      send: sendData,
+      subscribe: subscribeData,
+      bufferedAmount: () => dcRef.current?.bufferedAmount ?? 0,
+    }),
+    [dataChannelState, sendData, subscribeData],
+  );
+
   // Reset PC when remoteId switches from placeholder to real peer
   const prevRemoteRef = useRef<string>(remoteId);
   useEffect(() => {
     if (prevRemoteRef.current !== remoteId) {
       if (pcRef.current) { try { pcRef.current.close(); } catch {} pcRef.current = null; }
+      // The byte channel belonged to the previous peer connection.
+      detachDataChannel();
       remoteStreamRef.current = null;
       pendingCandidatesRef.current = [];
       setRemoteStream(null);
@@ -124,10 +305,12 @@ export function usePeerConnection(
       prevRemoteRef.current = remoteId;
       connectStartRef.current = remoteId !== '__no_remote__' ? Date.now() : null;
     }
-  }, [remoteId]);
+  }, [remoteId, detachDataChannel]);
 
   const close = useCallback(() => {
     if (restartTimeoutRef.current) { try { window.clearTimeout(restartTimeoutRef.current); } catch {} restartTimeoutRef.current = null; }
+    // The byte channel dies with the peer connection: handlers cleared, then closed.
+    detachDataChannel();
     const pc = pcRef.current;
     if (pc) {
       pc.ontrack = null;
@@ -142,7 +325,7 @@ export function usePeerConnection(
     remoteStreamRef.current = null;
     pendingCandidatesRef.current = [];
     setRemoteStream(null);
-  }, []);
+  }, [detachDataChannel]);
 
   const flushPendingCandidates = useCallback(async () => {
     const pc = pcRef.current; if (!pc || !pc.remoteDescription) return;
@@ -173,6 +356,24 @@ export function usePeerConnection(
     if (remoteId === '__no_remote__') return null as unknown as RTCPeerConnection;
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS, bundlePolicy: 'max-bundle', rtcpMuxPolicy: 'require' });
     pcRef.current = pc;
+    /*
+     * One application data channel per peer connection, created deterministically
+     * by the initiator so it is present in the very first offer and both sides
+     * agree on which channel is the document channel. This is an additional,
+     * independent transport on the same connection: no media track is touched,
+     * `bundlePolicy` is unchanged, and a failure here never alters the call.
+     */
+    if (initiator) {
+      try {
+        bindDataChannel(pc.createDataChannel(DATA_CHANNEL_LABEL, { ordered: true }));
+      } catch (err) {
+        if (isDebug()) console.warn('[jendcore] could not create data channel', err);
+      }
+    }
+    pc.ondatachannel = (event: RTCDataChannelEvent) => {
+      if (event.channel.label !== DATA_CHANNEL_LABEL) return;
+      bindDataChannel(event.channel);
+    };
     if (connectStartRef.current === null) connectStartRef.current = Date.now();
     pc.onconnectionstatechange = () => {
       const map: Record<RTCPeerConnectionState, ConnectionState> = {
@@ -256,7 +457,7 @@ export function usePeerConnection(
       for (const track of localStream.getTracks()) { try { pc.addTrack(track, localStream); } catch (e) { if (isDebug()) console.warn('[jendcore] addTrack failed', e); } }
     }
     return pc;
-  }, [selfId, remoteId, send, localStream, scheduleIceRestart]);
+  }, [selfId, remoteId, send, localStream, scheduleIceRestart, initiator, bindDataChannel]);
 
   useEffect(() => {
     const pc = pcRef.current; if (!pc || !localStream) return;
@@ -334,5 +535,5 @@ export function usePeerConnection(
     };
   }, [close, send, selfId, remoteId]);
 
-  return { connectionState, remoteStream };
+  return { connectionState, remoteStream, dataChannel };
 }
